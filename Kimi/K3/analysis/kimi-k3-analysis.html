@@ -1,0 +1,2860 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Kimi K3 技术报告的完整中文总结、模型架构解析与技术谱系。">
+  <meta name="theme-color" content="#111827">
+  <title>Kimi K3 技术报告：架构、训练与系统全景解析</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --ink-soft: #4b5870;
+      --paper: #fbfaf7;
+      --paper-deep: #f1eee7;
+      --line: #dcd7cd;
+      --navy: #132844;
+      --blue: #2457d6;
+      --cyan: #2e88a1;
+      --amber: #d8872f;
+      --red: #b34b4b;
+      --green: #3f765f;
+      --white: #fff;
+      --mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+      --sans: Inter, "SF Pro Display", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+      --serif: "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+      --shadow: 0 18px 55px rgb(18 31 52 / 10%);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 28px; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 80% -10%, rgb(53 108 186 / 15%), transparent 31rem),
+        linear-gradient(180deg, #f7f5ef 0, var(--paper) 40rem);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.78;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: #153fa8; }
+    button { font: inherit; }
+
+    .progress {
+      position: fixed;
+      inset: 0 auto auto 0;
+      z-index: 50;
+      width: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--amber), #f4c76a);
+      box-shadow: 0 0 18px rgb(216 135 47 / 55%);
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 292px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 30px 24px 24px;
+      overflow-y: auto;
+      background: rgb(17 34 57 / 97%);
+      color: #eaf0fa;
+      border-right: 1px solid rgb(255 255 255 / 8%);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      color: var(--white);
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgb(255 255 255 / 24%);
+      border-radius: 12px;
+      background: linear-gradient(145deg, #305d9c, #18304f);
+      color: #ffd493;
+      font-family: var(--serif);
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -.04em;
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%);
+    }
+
+    .brand-copy strong { display: block; font-size: 14px; letter-spacing: .08em; }
+    .brand-copy span { display: block; color: #9fb0ca; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+
+    .toc-title {
+      margin: 0 0 10px;
+      color: #8295b2;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+
+    .toc { display: flex; flex-direction: column; gap: 2px; }
+    .toc-link {
+      display: block;
+      padding: 7px 9px;
+      border-left: 2px solid transparent;
+      border-radius: 0 7px 7px 0;
+      color: #b7c4d9;
+      font-size: 12px;
+      line-height: 1.35;
+      text-decoration: none;
+      transition: 160ms ease;
+    }
+    .toc-link:hover { color: #fff; background: rgb(255 255 255 / 6%); }
+    .toc-link.active {
+      border-left-color: #f3bd65;
+      background: linear-gradient(90deg, rgb(243 189 101 / 13%), transparent);
+      color: #fff0d6;
+    }
+    .toc-level-3 { padding-left: 20px; color: #8799b4; font-size: 11px; }
+
+    .main { min-width: 0; }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 78px clamp(28px, 6vw, 92px) 70px;
+      color: #edf4ff;
+      background:
+        linear-gradient(110deg, rgb(13 31 53 / 98%), rgb(19 47 79 / 96%)),
+        repeating-linear-gradient(90deg, transparent 0 59px, rgb(255 255 255 / 4%) 60px);
+    }
+    .hero::before,
+    .hero::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+    .hero::before {
+      width: 470px;
+      height: 470px;
+      right: -180px;
+      top: -220px;
+      border: 1px solid rgb(255 255 255 / 10%);
+      box-shadow:
+        0 0 0 58px rgb(255 255 255 / 2%),
+        0 0 0 116px rgb(255 255 255 / 2%);
+    }
+    .hero::after {
+      width: 280px;
+      height: 280px;
+      left: 42%;
+      bottom: -240px;
+      background: #2a88a0;
+      filter: blur(90px);
+      opacity: .28;
+    }
+
+    .eyebrow {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 22px;
+      color: #f3c06c;
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 30px; height: 1px; background: currentColor; }
+    .hero h1 {
+      position: relative;
+      z-index: 1;
+      max-width: 940px;
+      margin: 0;
+      font-family: var(--serif);
+      font-size: clamp(42px, 6vw, 78px);
+      font-weight: 760;
+      line-height: 1.08;
+      letter-spacing: -.045em;
+    }
+    .hero h1 em {
+      color: #91c9d7;
+      font-style: normal;
+    }
+    .hero-lead {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      margin: 25px 0 0;
+      color: #bdcbe0;
+      font-size: clamp(16px, 1.7vw, 20px);
+      line-height: 1.7;
+    }
+    .hero-actions {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 1px solid rgb(255 255 255 / 20%);
+      border-radius: 9px;
+      color: #edf4ff;
+      background: rgb(255 255 255 / 7%);
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      backdrop-filter: blur(8px);
+    }
+    .button.primary { color: #172033; border-color: #f2c36f; background: #f2c36f; }
+    .button:hover { color: #fff; transform: translateY(-1px); }
+    .button.primary:hover { color: #172033; background: #ffd98e; }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 1px;
+      border-bottom: 1px solid var(--line);
+      background: var(--line);
+    }
+    .metric {
+      min-width: 0;
+      padding: 22px clamp(12px, 2.1vw, 28px);
+      background: rgb(251 250 247 / 97%);
+    }
+    .metric strong {
+      display: block;
+      color: var(--navy);
+      font-family: var(--serif);
+      font-size: clamp(23px, 2.6vw, 34px);
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+    .metric span { display: block; margin-top: 7px; color: var(--ink-soft); font-size: 11px; letter-spacing: .05em; }
+
+    .reading-wrap {
+      width: min(100%, 1050px);
+      margin: 0 auto;
+      padding: 52px clamp(24px, 6vw, 78px) 110px;
+    }
+
+    .editor-note {
+      display: grid;
+      grid-template-columns: 9px 1fr;
+      margin: 0 0 54px;
+      border: 1px solid #d9d3c8;
+      border-radius: 13px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 12px 36px rgb(27 39 57 / 6%);
+    }
+    .editor-note::before { content: ""; background: linear-gradient(var(--amber), #f0bf68); }
+    .editor-note div { padding: 18px 22px; }
+    .editor-note strong { color: var(--navy); }
+    .editor-note p { margin: 4px 0 0; color: var(--ink-soft); font-size: 14px; }
+
+    article { font-family: var(--sans); }
+    article > blockquote:first-child {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: -20px 0 52px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+    article > blockquote:first-child p { display: contents; }
+    article > blockquote:first-child br { display: none; }
+    article > blockquote:first-child a,
+    article > blockquote:first-child p {
+      font-size: 12px;
+    }
+
+    h2, h3, h4, h5 {
+      position: relative;
+      scroll-margin-top: 24px;
+      color: var(--navy);
+      font-family: var(--serif);
+      letter-spacing: -.025em;
+    }
+    h2 {
+      margin: 86px 0 28px;
+      padding: 18px 0 13px;
+      border-top: 1px solid #cfc8ba;
+      border-bottom: 1px solid #e3ded4;
+      font-size: clamp(29px, 3.5vw, 40px);
+      line-height: 1.22;
+    }
+    h2::before {
+      content: "SECTION";
+      display: block;
+      margin-bottom: 7px;
+      color: var(--amber);
+      font-family: var(--sans);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .18em;
+    }
+    h3 { margin: 54px 0 19px; font-size: 27px; line-height: 1.28; }
+    h4 { margin: 37px 0 14px; font-size: 21px; line-height: 1.35; }
+    h5 {
+      margin: 27px 0 10px;
+      color: #334764;
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 780;
+      letter-spacing: 0;
+    }
+    p { margin: 13px 0; }
+    strong { color: #172945; }
+    ul, ol { margin: 13px 0 19px; padding-left: 1.45em; }
+    li { margin: 6px 0; padding-left: .2em; }
+    li::marker { color: var(--amber); font-weight: 700; }
+    hr { height: 1px; margin: 60px 0; border: 0; background: linear-gradient(90deg, transparent, #cfc8ba, transparent); }
+
+    blockquote {
+      margin: 24px 0;
+      padding: 18px 21px;
+      border-left: 4px solid var(--cyan);
+      border-radius: 0 10px 10px 0;
+      color: #33465e;
+      background: #eef6f7;
+    }
+    blockquote p:first-child { margin-top: 0; }
+    blockquote p:last-child { margin-bottom: 0; }
+
+    code {
+      padding: .14em .34em;
+      border: 1px solid #ded8cd;
+      border-radius: 5px;
+      color: #a43b38;
+      background: #f4f1eb;
+      font-family: var(--mono);
+      font-size: .88em;
+    }
+    pre {
+      position: relative;
+      margin: 22px 0;
+      padding: 20px 22px;
+      overflow: auto;
+      border: 1px solid #24384f;
+      border-radius: 11px;
+      color: #dce8f6;
+      background: #15263b;
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.65;
+    }
+    pre code { padding: 0; border: 0; color: inherit; background: transparent; font-size: inherit; }
+
+    .table-wrap { width: 100%; margin: 24px 0 32px; overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border: 1px solid #d8d1c5;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    th, td { padding: 10px 12px; border-right: 1px solid #e2ddd3; border-bottom: 1px solid #e2ddd3; vertical-align: top; }
+    th:last-child, td:last-child { border-right: 0; }
+    tr:last-child td { border-bottom: 0; }
+    th {
+      color: #eaf1fa;
+      background: #233a57;
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .03em;
+      text-align: left;
+    }
+    tbody tr:nth-child(even) { background: #f8f6f1; }
+
+    .math-block {
+      margin: 22px 0;
+      padding: 18px 20px;
+      overflow-x: auto;
+      border-left: 3px solid var(--amber);
+      border-radius: 0 9px 9px 0;
+      background: #f4f1ea;
+      color: #17243a;
+      font-family: "STIX Two Math", "Cambria Math", var(--serif);
+      text-align: center;
+    }
+    .math-inline { color: #213b64; font-family: "STIX Two Math", "Cambria Math", var(--serif); }
+
+    .diagram-card {
+      margin: 26px 0 34px;
+      padding: 18px 20px 20px;
+      overflow-x: auto;
+      border: 1px solid #d5dfe8;
+      border-radius: 12px;
+      background: #f4f8fb;
+      box-shadow: 0 12px 35px rgb(31 61 91 / 6%);
+    }
+    .diagram-card figcaption {
+      margin-bottom: 10px;
+      color: #718198;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .diagram-card .mermaid { margin: 0; padding: 14px; border: 0; color: #20344f; background: transparent; box-shadow: none; text-align: center; }
+    .diagram-card svg { max-width: 100%; height: auto; }
+
+    .paper-figure {
+      margin: 30px 0 40px;
+      overflow: hidden;
+      border: 1px solid #d8d1c5;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 12px 35px rgb(31 43 60 / 7%);
+    }
+    .paper-figure a { display: block; color: inherit; background: #fff; }
+    .paper-figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin: 0 auto;
+    }
+    .paper-figure.compact img { max-width: 760px; }
+    .paper-figure figcaption {
+      padding: 14px 17px 16px;
+      border-top: 1px solid #ded8cd;
+      color: var(--ink-soft);
+      font-size: 12.5px;
+      line-height: 1.65;
+    }
+
+    .back-top {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 50%;
+      color: #fff;
+      background: #1d3657;
+      box-shadow: 0 10px 30px rgb(17 39 67 / 28%);
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: 160ms ease;
+    }
+    .back-top.show { opacity: 1; transform: translateY(0); }
+
+    .mobile-menu {
+      display: none;
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 70;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgb(255 255 255 / 16%);
+      border-radius: 10px;
+      color: #fff;
+      background: rgb(19 40 68 / 91%);
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+    }
+
+    .page-footer {
+      padding: 28px;
+      color: #9badc5;
+      background: #12243c;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 980px) {
+      .shell { display: block; }
+      .sidebar {
+        position: fixed;
+        z-index: 60;
+        width: min(84vw, 320px);
+        transform: translateX(-105%);
+        transition: transform 180ms ease;
+        box-shadow: 18px 0 50px rgb(5 16 32 / 30%);
+      }
+      body.nav-open .sidebar { transform: translateX(0); }
+      .mobile-menu { display: block; }
+      .metric-strip { grid-template-columns: repeat(3, 1fr); }
+      .metric:nth-child(4), .metric:nth-child(5) { grid-column: span 1; }
+    }
+
+    @media (max-width: 620px) {
+      body { font-size: 15px; }
+      .hero { padding: 70px 22px 52px; }
+      .hero h1 { font-size: 42px; }
+      .metric-strip { grid-template-columns: repeat(2, 1fr); }
+      .metric:last-child { grid-column: span 2; }
+      .reading-wrap { padding: 34px 18px 80px; }
+      h2 { margin-top: 66px; font-size: 30px; }
+      h3 { font-size: 24px; }
+      table { min-width: 620px; }
+    }
+
+    @page {
+      size: A4;
+      margin: 18mm 16mm 20mm;
+    }
+
+    @media print {
+      :root { --ink: #111827; --paper: #fff; }
+      html { scroll-padding-top: 0; }
+      body {
+        background: #fff;
+        font-family: var(--serif);
+        font-size: 10.2pt;
+        line-height: 1.56;
+      }
+      .progress, .sidebar, .mobile-menu, .back-top, .hero-actions, .page-footer { display: none !important; }
+      .shell { display: block; }
+      .hero {
+        min-height: 259mm;
+        padding: 36mm 20mm 28mm;
+        color: #edf4ff !important;
+        background: #142b49 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+        break-after: page;
+      }
+      .hero h1 { max-width: 158mm; font-size: 35pt; }
+      .hero-lead { max-width: 148mm; font-size: 13pt; }
+      .metric-strip {
+        grid-template-columns: repeat(5, 1fr);
+        border: 0;
+        margin-bottom: 10mm;
+      }
+      .metric {
+        min-height: 36mm;
+        padding: 11mm 4mm;
+        border-bottom: 1px solid #ddd;
+        background: #f7f5ef !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .metric strong { font-size: 19pt; }
+      .metric span {
+        color: #4b5870 !important;
+        font-family: var(--serif);
+        font-size: 7.5pt;
+      }
+      .reading-wrap { width: 100%; max-width: none; padding: 0; }
+      article { font-family: var(--serif); }
+      .editor-note { margin: 0 0 13mm; box-shadow: none; }
+      article > blockquote:first-child { margin-top: 0; }
+      h2 { margin: 17mm 0 6mm; padding: 4mm 0 3mm; font-size: 24pt; break-before: page; }
+      h3 { margin: 10mm 0 4mm; font-size: 18pt; break-after: avoid; }
+      h4 { margin: 7mm 0 3mm; font-size: 14pt; break-after: avoid; }
+      h5 { break-after: avoid; }
+      p, li { orphans: 3; widows: 3; }
+      pre, blockquote, .math-block, .diagram-card, .paper-figure, table { break-inside: avoid; }
+      pre { white-space: pre-wrap; word-break: break-word; font-size: 7.6pt; }
+      .table-wrap { overflow: visible; break-inside: auto; }
+      table { font-size: 7.6pt; break-inside: auto; }
+      tr { break-inside: avoid; }
+      th, td { padding: 1.8mm 2mm; }
+      a { color: #173f91; text-decoration: none; }
+      .diagram-card { box-shadow: none; }
+      .paper-figure { box-shadow: none; }
+      .paper-figure figcaption { font-size: 8pt; }
+    }
+  
+  body.theme-kimi {
+    --ink: #101010;
+    --ink-soft: #555;
+    --paper: #f7f7f3;
+    --paper-deep: #ededE8;
+    --line: #171717;
+    --navy: #050505;
+    --blue: #111;
+    --cyan: #111;
+    --amber: #111;
+    --white: #fff;
+    background:
+      radial-gradient(circle at 80% 5%, rgb(0 0 0 / 5%) 0 1px, transparent 1.5px) 0 0 / 8px 8px,
+      #f7f7f3;
+  }
+  .theme-kimi .sidebar {
+    color: #fff;
+    border-right-color: #222;
+    background:
+      radial-gradient(circle, rgb(255 255 255 / 9%) 0 1px, transparent 1.4px) 0 0 / 9px 9px,
+      #050505;
+  }
+  .theme-kimi .brand-mark {
+    width: 42px;
+    height: 42px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 50%;
+    color: transparent;
+    background:
+      repeating-linear-gradient(
+        0deg,
+        #fff 0 3px,
+        transparent 3px 6px
+      );
+    box-shadow: none;
+  }
+  .theme-kimi .brand-copy strong,
+  .theme-kimi .brand-copy span,
+  .theme-kimi .toc-title,
+  .theme-kimi .toc-link {
+    font-family: var(--mono), "Songti SC", serif;
+    letter-spacing: -.02em;
+  }
+  .theme-kimi .brand-copy span,
+  .theme-kimi .toc-title { color: #777; }
+  .theme-kimi .toc-link { color: #aaa; border-radius: 0; }
+  .theme-kimi .toc-link:hover { color: #fff; background: #151515; }
+  .theme-kimi .toc-link.active {
+    color: #fff;
+    border-left-color: #fff;
+    background:
+      radial-gradient(circle, rgb(255 255 255 / 18%) 0 1px, transparent 1.2px) 0 0 / 6px 6px;
+  }
+  .theme-kimi .hero {
+    min-height: 720px;
+    color: #fff;
+    background: #030303;
+  }
+  .theme-kimi .hero::before {
+    width: 720px;
+    height: 720px;
+    right: -130px;
+    top: -180px;
+    border: 1px solid #222;
+    border-radius: 50%;
+    background:
+      repeating-radial-gradient(
+        circle,
+        transparent 0 22px,
+        rgb(255 255 255 / 7%) 23px 25px
+      );
+    box-shadow: none;
+  }
+  .theme-kimi .hero::after {
+    width: 58%;
+    height: 68%;
+    left: auto;
+    right: 2%;
+    bottom: -4%;
+    border-radius: 0;
+    background:
+      radial-gradient(circle, rgb(255 255 255 / 18%) 0 1px, transparent 1.5px) 0 0 / 8px 8px;
+    filter: none;
+    opacity: 1;
+    mask-image: radial-gradient(ellipse at center, #000, transparent 70%);
+  }
+  .theme-kimi .eyebrow {
+    color: #fff;
+    font-family: var(--mono);
+    font-weight: 500;
+    letter-spacing: -.02em;
+  }
+  .theme-kimi .eyebrow::before { width: 14px; height: 14px; border: 1px solid #fff; background: transparent; }
+  .theme-kimi .hero h1 {
+    max-width: 890px;
+    font-family: var(--mono), "Songti SC", serif;
+    font-weight: 500;
+    letter-spacing: -.08em;
+    text-transform: uppercase;
+  }
+  .theme-kimi .hero h1 em { color: #fff; }
+  .theme-kimi .hero-lead {
+    max-width: 720px;
+    color: #aaa;
+    font-family: var(--mono), "Songti SC", serif;
+    font-size: 16px;
+    line-height: 1.65;
+  }
+  .theme-kimi .button {
+    border-color: #555;
+    border-radius: 0;
+    color: #fff;
+    background: #050505;
+    font-family: var(--mono), "Songti SC", serif;
+    font-weight: 500;
+  }
+  .theme-kimi .button.primary { border-color: #fff; color: #050505; background: #fff; }
+  .theme-kimi .button.primary:hover { color: #050505; background: #ddd; }
+  .theme-kimi .metric-strip { border-color: #222; background: #222; }
+  .theme-kimi .metric {
+    color: #fff;
+    background:
+      linear-gradient(135deg, transparent 75%, rgb(255 255 255 / 5%) 75%),
+      #050505;
+    background-size: 12px 12px;
+  }
+  .theme-kimi .metric strong {
+    color: #fff;
+    font-family: var(--mono), "Songti SC", serif;
+    font-weight: 500;
+  }
+  .theme-kimi .metric span {
+    color: #8c8c8c;
+    font-family: var(--mono), "Songti SC", serif;
+    letter-spacing: 0;
+  }
+  .theme-kimi .editor-note {
+    border: 2px solid #111;
+    border-radius: 0;
+    background: #f7f7f3;
+    box-shadow: 10px 10px 0 #111;
+  }
+  .theme-kimi .editor-note::before {
+    background:
+      repeating-linear-gradient(
+        0deg,
+        #111 0 3px,
+        transparent 3px 6px
+      );
+  }
+  .theme-kimi h2,
+  .theme-kimi h3,
+  .theme-kimi h4,
+  .theme-kimi h5 {
+    color: #080808;
+    font-family: var(--mono), "Songti SC", serif;
+    font-weight: 600;
+    letter-spacing: -.055em;
+  }
+  .theme-kimi h2 { border-color: #111; }
+  .theme-kimi h2::before {
+    content: "// CHAPTER";
+    color: #111;
+    font-family: var(--mono);
+  }
+  .theme-kimi blockquote {
+    border-left-color: #111;
+    border-radius: 0;
+    color: #222;
+    background:
+      radial-gradient(circle, rgb(0 0 0 / 10%) 0 1px, transparent 1.3px) 0 0 / 8px 8px,
+      #efefeb;
+  }
+  .theme-kimi pre {
+    border-color: #000;
+    border-radius: 0;
+    color: #fff;
+    background: #050505;
+  }
+  .theme-kimi pre code {
+    border: 0;
+    color: inherit;
+    background: transparent;
+  }
+  .theme-kimi code { border-color: #aaa; border-radius: 0; color: #111; background: #e9e9e4; }
+  .theme-kimi table { border: 2px solid #111; border-radius: 0; }
+  .theme-kimi th { color: #fff; background: #050505; font-family: var(--mono), "Songti SC", serif; }
+  .theme-kimi tbody tr:nth-child(even) { background: #ededE8; }
+  .theme-kimi .math-block {
+    border: 1px solid #111;
+    border-left: 7px solid #111;
+    border-radius: 0;
+    color: #111;
+    background: #fff;
+  }
+  .theme-kimi .diagram-card {
+    border: 2px solid #111;
+    border-radius: 0;
+    background:
+      radial-gradient(circle, rgb(0 0 0 / 7%) 0 1px, transparent 1.3px) 0 0 / 9px 9px,
+      #fafaf7;
+    box-shadow: 9px 9px 0 #111;
+  }
+  .theme-kimi .paper-figure {
+    border: 2px solid #111;
+    border-radius: 0;
+    background: #fff;
+    box-shadow: 9px 9px 0 #111;
+  }
+  .theme-kimi .paper-figure figcaption {
+    border-top: 2px solid #111;
+    color: #222;
+    background:
+      radial-gradient(circle, rgb(0 0 0 / 8%) 0 1px, transparent 1.3px) 0 0 / 8px 8px,
+      #f2f2ee;
+    font-family: var(--mono), "Songti SC", serif;
+  }
+  .theme-kimi .diagram-card figcaption { color: #111; font-family: var(--mono); }
+  .theme-kimi .back-top { border: 1px solid #fff; border-radius: 0; background: #050505; }
+  .theme-kimi .page-footer { color: #aaa; background: #050505; font-family: var(--mono); }
+  .theme-kimi a { color: #111; text-decoration-thickness: 2px; }
+  .theme-kimi .hero a,
+  .theme-kimi .sidebar a { color: inherit; }
+
+  @media print {
+    .theme-kimi .hero {
+      min-height: 259mm;
+      color: #fff !important;
+      background: #030303 !important;
+    }
+    .theme-kimi .hero h1 {
+      max-width: 158mm;
+      font-family: var(--mono), "Songti SC", serif;
+      font-size: 34pt;
+      letter-spacing: -.07em;
+    }
+    .theme-kimi .metric {
+      color: #fff !important;
+      background: #050505 !important;
+    }
+    .theme-kimi .metric strong,
+    .theme-kimi .metric span { color: #fff !important; }
+    .theme-kimi h2,
+    .theme-kimi h3,
+    .theme-kimi h4,
+    .theme-kimi h5 { font-family: var(--mono), "Songti SC", serif; }
+    .theme-kimi .editor-note,
+    .theme-kimi .diagram-card,
+    .theme-kimi .paper-figure { box-shadow: none; }
+  }
+</style>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"]],
+        displayMath: [["\\[", "\\]"]],
+        processEscapes: true
+      },
+      chtml: { scale: 0.92 },
+      startup: {
+        ready: function () {
+          MathJax.startup.defaultReady();
+          MathJax.startup.promise.then(function () {
+            document.documentElement.dataset.mathReady = "true";
+          });
+        }
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+</head>
+<body class="theme-kimi">
+  <div class="progress" aria-hidden="true"></div>
+  <button class="mobile-menu" aria-label="打开章节导航" aria-expanded="false">☰</button>
+  <div class="shell">
+    <aside class="sidebar" aria-label="章节导航">
+      <a class="brand" href="#top">
+        <span class="brand-mark">K3</span>
+        <span class="brand-copy"><strong>TECH REPORT</strong><span>architecture atlas</span></span>
+      </a>
+      <p class="toc-title">Contents</p>
+      <nav class="toc"><a class="toc-link toc-level-2" href="#0-执行摘要" data-section="0-执行摘要">0. 执行摘要</a>
+<a class="toc-link toc-level-2" href="#1-论文的叙事主线" data-section="1-论文的叙事主线">1. 论文的叙事主线</a>
+<a class="toc-link toc-level-3" href="#1-1-问题意识-同时扩展训练时计算和测试时计算" data-section="1-1-问题意识-同时扩展训练时计算和测试时计算">1.1 问题意识：同时扩展训练时计算和测试时计算</a>
+<a class="toc-link toc-level-3" href="#1-2-论文结构" data-section="1-2-论文结构">1.2 论文结构</a>
+<a class="toc-link toc-level-2" href="#2-架构总览" data-section="2-架构总览">2. 架构总览</a>
+<a class="toc-link toc-level-3" href="#2-1-关键配置" data-section="2-1-关键配置">2.1 关键配置</a>
+<a class="toc-link toc-level-3" href="#2-2-一层到整网的数据流" data-section="2-2-一层到整网的数据流">2.2 一层到整网的数据流</a>
+<a class="toc-link toc-level-3" href="#2-3-三维信息流" data-section="2-3-三维信息流">2.3 三维信息流</a>
+<a class="toc-link toc-level-2" href="#3-技术谱系总图" data-section="3-技术谱系总图">3. 技术谱系总图</a>
+<a class="toc-link toc-level-2" href="#4-模型架构详解" data-section="4-模型架构详解">4. 模型架构详解</a>
+<a class="toc-link toc-level-3" href="#4-1-hybrid-attention-的设计动机" data-section="4-1-hybrid-attention-的设计动机">4.1 Hybrid Attention 的设计动机</a>
+<a class="toc-link toc-level-3" href="#4-2-kimi-delta-attention-kda" data-section="4-2-kimi-delta-attention-kda">4.2 Kimi Delta Attention（KDA）</a>
+<a class="toc-link toc-level-3" href="#4-3-gated-mla" data-section="4-3-gated-mla">4.3 Gated MLA</a>
+<a class="toc-link toc-level-3" href="#4-4-kda-与-gated-mla-的分工" data-section="4-4-kda-与-gated-mla-的分工">4.4 KDA 与 Gated MLA 的分工</a>
+<a class="toc-link toc-level-3" href="#4-5-attention-residuals-沿深度做-attention" data-section="4-5-attention-residuals-沿深度做-attention">4.5 Attention Residuals：沿深度做 attention</a>
+<a class="toc-link toc-level-3" href="#4-6-stable-latentmoe" data-section="4-6-stable-latentmoe">4.6 Stable LatentMoE</a>
+<a class="toc-link toc-level-3" href="#4-7-native-vision-moonvit-v2" data-section="4-7-native-vision-moonvit-v2">4.7 Native Vision：MoonViT-V2</a>
+<a class="toc-link toc-level-3" href="#4-8-per-head-muon" data-section="4-8-per-head-muon">4.8 Per-Head Muon</a>
+<a class="toc-link toc-level-3" href="#4-9-mtp-与-eagle-3-draft" data-section="4-9-mtp-与-eagle-3-draft">4.9 MTP 与 EAGLE-3 draft</a>
+<a class="toc-link toc-level-2" href="#5-预训练" data-section="5-预训练">5. 预训练</a>
+<a class="toc-link toc-level-3" href="#5-1-数据" data-section="5-1-数据">5.1 数据</a>
+<a class="toc-link toc-level-3" href="#5-2-scaling-law" data-section="5-2-scaling-law">5.2 Scaling law</a>
+<a class="toc-link toc-level-3" href="#5-3-长上下文扩展" data-section="5-3-长上下文扩展">5.3 长上下文扩展</a>
+<a class="toc-link toc-level-2" href="#6-后训练" data-section="6-后训练">6. 后训练</a>
+<a class="toc-link toc-level-3" href="#6-1-三阶段总流程" data-section="6-1-三阶段总流程">6.1 三阶段总流程</a>
+<a class="toc-link toc-level-3" href="#6-2-rl-环境和任务合成" data-section="6-2-rl-环境和任务合成">6.2 RL 环境和任务合成</a>
+<a class="toc-link toc-level-3" href="#6-3-部署感知后训练" data-section="6-3-部署感知后训练">6.3 部署感知后训练</a>
+<a class="toc-link toc-level-2" href="#7-基础设施" data-section="7-基础设施">7. 基础设施</a>
+<a class="toc-link toc-level-3" href="#7-1-kda-的算法-系统协同" data-section="7-1-kda-的算法-系统协同">7.1 KDA 的算法-系统协同</a>
+<a class="toc-link toc-level-3" href="#7-2-3t-预训练" data-section="7-2-3t-预训练">7.2 3T 预训练</a>
+<a class="toc-link toc-level-3" href="#7-3-1m-agentic-rl-基础设施" data-section="7-3-1m-agentic-rl-基础设施">7.3 1M agentic RL 基础设施</a>
+<a class="toc-link toc-level-3" href="#7-4-推理和在线服务" data-section="7-4-推理和在线服务">7.4 推理和在线服务</a>
+<a class="toc-link toc-level-2" href="#8-评测结果" data-section="8-评测结果">8. 评测结果</a>
+<a class="toc-link toc-level-3" href="#8-1-代表性公开结果" data-section="8-1-代表性公开结果">8.1 代表性公开结果</a>
+<a class="toc-link toc-level-3" href="#8-2-第三方评测" data-section="8-2-第三方评测">8.2 第三方评测</a>
+<a class="toc-link toc-level-3" href="#8-3-评测可比性注意事项" data-section="8-3-评测可比性注意事项">8.3 评测可比性注意事项</a>
+<a class="toc-link toc-level-3" href="#8-4-成本效率" data-section="8-4-成本效率">8.4 成本效率</a>
+<a class="toc-link toc-level-2" href="#9-贡献分层与创新性分析" data-section="9-贡献分层与创新性分析">9. 贡献分层与创新性分析</a>
+<a class="toc-link toc-level-3" href="#9-1-架构层面" data-section="9-1-架构层面">9.1 架构层面</a>
+<a class="toc-link toc-level-3" href="#9-2-系统层面" data-section="9-2-系统层面">9.2 系统层面</a>
+<a class="toc-link toc-level-3" href="#9-3-后训练层面" data-section="9-3-后训练层面">9.3 后训练层面</a>
+<a class="toc-link toc-level-2" href="#10-证据边界与局限" data-section="10-证据边界与局限">10. 证据边界与局限</a>
+<a class="toc-link toc-level-3" href="#10-1-训练规模披露不足" data-section="10-1-训练规模披露不足">10.1 训练规模披露不足</a>
+<a class="toc-link toc-level-3" href="#10-2-2-5-倍-scaling-efficiency-无法归因" data-section="10-2-2-5-倍-scaling-efficiency-无法归因">10.2 2.5 倍 scaling efficiency 无法归因</a>
+<a class="toc-link toc-level-3" href="#10-3-架构证据有强弱之分" data-section="10-3-架构证据有强弱之分">10.3 架构证据有强弱之分</a>
+<a class="toc-link toc-level-3" href="#10-4-开放性与许可证边界" data-section="10-4-开放性与许可证边界">10.4 开放性与许可证边界</a>
+<a class="toc-link toc-level-3" href="#10-5-综合评价" data-section="10-5-综合评价">10.5 综合评价</a>
+<a class="toc-link toc-level-2" href="#11-技术要点溯源速查表" data-section="11-技术要点溯源速查表">11. 技术要点溯源速查表</a>
+<a class="toc-link toc-level-2" href="#12-模块功能摘要" data-section="12-模块功能摘要">12. 模块功能摘要</a></nav>
+    </aside>
+
+    <main class="main" id="top">
+      <header class="hero">
+        <div class="eyebrow">Technical Report · Deep Dive</div>
+        <h1>Kimi K3<br><em>架构、训练与系统全景解析</em></h1>
+        <p class="hero-lead">沿论文脉络拆解一个 2.78T 参数原生多模态模型：从 KDA 与 Gated MLA 的序列混合，到 AttnRes、Stable LatentMoE、1M agentic RL 和部署基础设施，并追溯每项设计的技术来源。</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#4-模型架构详解">进入架构详解</a>
+          <a class="button" href="kimi-k3-analysis.pdf">下载排版 PDF</a>
+          <a class="button" href="https://github.com/MoonshotAI/Kimi-K3/blob/main/k3_tech_report.pdf" target="_blank" rel="noreferrer">查看论文</a>
+        </div>
+      </header>
+
+      <section class="metric-strip" aria-label="关键模型指标">
+        <div class="metric"><strong>2.78T</strong><span>总参数</span></div>
+        <div class="metric"><strong>104.2B</strong><span>每 TOKEN 激活参数</span></div>
+        <div class="metric"><strong>93</strong><span>主干层数</span></div>
+        <div class="metric"><strong>69 + 24</strong><span>KDA + GATED MLA</span></div>
+        <div class="metric"><strong>1M</strong><span>上下文长度</span></div>
+      </section>
+
+      <div class="reading-wrap">
+        <aside class="editor-note">
+          <div>
+            <strong>阅读提示</strong>
+            <p>本文把“论文明确披露”“由公开配置交叉验证”“根据技术路线作出的解释”分开表达；对于只有引用或结构相似、但没有直接继承证据的关系，统一使用保守措辞。</p>
+          </div>
+        </aside>
+        <article><blockquote>
+<p>主文档：<a href="https://github.com/MoonshotAI/Kimi-K3/blob/main/k3_tech_report.pdf" target="_blank" rel="noreferrer">官方技术报告</a><br>官方模型：<a href="https://huggingface.co/moonshotai/Kimi-K3" target="_blank" rel="noreferrer">Hugging Face - moonshotai/Kimi-K3</a><br>官方配置：<a href="https://huggingface.co/moonshotai/Kimi-K3/blob/main/config.json" target="_blank" rel="noreferrer">config.json</a><br>报告版本：2026-07-28，47 页</p>
+</blockquote>
+<h2 id="0-执行摘要">0. 执行摘要</h2>
+<p>Kimi K3 的核心并不是单纯把 Kimi K2 从 1T 扩大到 2.8T，而是同时重做了三条信息流：</p>
+<ol>
+<li><strong>沿序列的信息流</strong>：用 69 层 Kimi Delta Attention（KDA）承担低成本、固定状态的长序列混合，每 3 层 KDA 插入 1 层全局 Gated MLA，共 24 层 MLA，兼顾线性复杂度和全局精确交互。</li>
+<li><strong>沿深度的信息流</strong>：用 Block Attention Residuals（Block AttnRes）取代“所有历史层输出一律等权相加”的普通残差，让当前层可以按输入内容选择此前哪个深度的表示。</li>
+<li><strong>沿通道/专家的信息流</strong>：用 Stable LatentMoE 把 routed expert 放在 3584 维 latent 空间中，扩到 896 个 routed experts、每 token 激活 16 个，同时用 RMSNorm、SiTU-GLU 和 Quantile Balancing 解决极稀疏 MoE 的激活爆炸和负载不均衡。</li>
+</ol>
+<p>再加上从零开始、与语言模型共同预训练的 MoonViT-V2，以及 Per-Head Muon，K3 得到：</p>
+<ul>
+<li>总参数：2.78T</li>
+<li>每 token 激活参数：104.2B</li>
+<li>主干层数：93</li>
+<li>上下文：1,048,576 tokens</li>
+<li>原生文本、图像、视频输入</li>
+<li>后训练阶段对 routed expert 权重采用 MXFP4 QAT，激活使用 MXFP8</li>
+</ul>
+<p>论文声称这些架构、数据和训练 recipe 合计带来相对 Kimi K2 <strong>约 2.5 倍 scaling efficiency</strong>。该指标的含义如下：</p>
+<blockquote>
+<p>2.5 倍是拟合 scaling-law 曲线后，在相同验证损失下所需训练 FLOPs 的横向差距，不是“推理快 2.5 倍”，也不是任意单个模块独立贡献 2.5 倍。</p>
+</blockquote>
+<p>而且报告没有公开 K3 的预训练 token 总量、GPU 总数、总 GPU-hours、训练天数或逐项架构消融，所以无法把这 2.5 倍精确拆给 KDA、AttnRes、LatentMoE、数据和优化器中的某一个。</p>
+<hr>
+<h2 id="1-论文的叙事主线">1. 论文的叙事主线</h2>
+<h3 id="1-1-问题意识-同时扩展训练时计算和测试时计算">1.1 问题意识：同时扩展训练时计算和测试时计算</h3>
+<p>论文把当前大模型 scaling 分成两条轴：</p>
+<ul>
+<li><strong>训练前/预训练 scaling</strong>：扩大参数、数据和训练 FLOPs，代表路线来自经典 scaling laws 和 Chinchilla。</li>
+<li><strong>测试时 scaling</strong>：让模型花更多 reasoning tokens、工具调用和并行 agent 计算，代表路线包括 OpenAI o-series、DeepSeek-R1、Kimi K1.5 和 Kimi K2.5 Agent Swarm。</li>
+</ul>
+<p>作者认为近期开放模型更多在第二条轴上竞争，但预训练底座仍集中在 1T 左右。因此 K3 的目标是两条轴同时扩大：</p>
+<ul>
+<li>预训练底座扩大到 2.8T total / 104B active；</li>
+<li>上下文扩大到 1M；</li>
+<li>RL 直接覆盖长时 coding、general agent、knowledge work 和视觉工具使用；</li>
+<li>提供 low / high / max 三档 reasoning effort。</li>
+</ul>
+<h3 id="1-2-论文结构">1.2 论文结构</h3>
+<p>论文随后依次回答五个问题：</p>
+<ol>
+<li><strong>模型架构</strong><br>Hybrid KDA-MLA、AttnRes、Stable LatentMoE、MoonViT-V2、Per-Head Muon。</li>
+<li><strong>预训练方法</strong><br>原生多模态 next-token prediction、重新拟合 scaling law、8K 到 1M 的渐进长上下文训练。</li>
+<li><strong>后训练方法</strong><br>SFT 冷启动，三领域乘三档 effort 的九个 RL 专家，再用 MOPD 合并成一个模型。</li>
+<li><strong>训练与部署基础设施</strong><br>FlashKDA/KCP、MoonEP、分层内存、Mooncake、AgentENV、混合 KDA/MLA prefix cache 和 fleet scheduler。</li>
+<li><strong>性能与效率评估</strong><br>K3 在大量 coding、agentic 和 vision benchmark 上领先多数被测开放/闭源模型，但总体仍落后于报告中的 Claude Fable 5 和 GPT-5.6 Sol。</li>
+</ol>
+<hr>
+<h2 id="2-架构总览">2. 架构总览</h2>
+<h3 id="2-1-关键配置">2.1 关键配置</h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th align="right">Kimi K2</th>
+<th align="right">Kimi K3</th>
+<th align="right">变化</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>总参数</td>
+<td align="right">1.04T</td>
+<td align="right">2.78T</td>
+<td align="right">+167%</td>
+</tr>
+<tr>
+<td>激活参数</td>
+<td align="right">32.6B</td>
+<td align="right">104.2B</td>
+<td align="right">+220%</td>
+</tr>
+<tr>
+<td>主干层数</td>
+<td align="right">61</td>
+<td align="right">93</td>
+<td align="right">+52%</td>
+</tr>
+<tr>
+<td>hidden size</td>
+<td align="right">7168</td>
+<td align="right">7168</td>
+<td align="right">不变</td>
+</tr>
+<tr>
+<td>attention heads</td>
+<td align="right">64</td>
+<td align="right">96</td>
+<td align="right">+50%</td>
+</tr>
+<tr>
+<td>attention</td>
+<td align="right">61 MLA</td>
+<td align="right">69 KDA + 24 Gated MLA</td>
+<td align="right">Hybrid</td>
+</tr>
+<tr>
+<td>routed experts</td>
+<td align="right">384</td>
+<td align="right">896</td>
+<td align="right">+133%</td>
+</tr>
+<tr>
+<td>每 token routed top-k</td>
+<td align="right">8</td>
+<td align="right">16</td>
+<td align="right">+100%</td>
+</tr>
+<tr>
+<td>shared experts</td>
+<td align="right">1</td>
+<td align="right">2</td>
+<td align="right">+100%</td>
+</tr>
+<tr>
+<td>latent MoE width</td>
+<td align="right">无</td>
+<td align="right">3584</td>
+<td align="right">主干宽度的一半</td>
+</tr>
+<tr>
+<td>每 expert FFN hidden</td>
+<td align="right">2048</td>
+<td align="right">3072</td>
+<td align="right">+50%</td>
+</tr>
+<tr>
+<td>激活函数</td>
+<td align="right">SwiGLU</td>
+<td align="right">SiTU-GLU</td>
+<td align="right">有界化</td>
+</tr>
+<tr>
+<td>训练上下文</td>
+<td align="right">128K</td>
+<td align="right">1M</td>
+<td align="right">8 倍</td>
+</tr>
+<tr>
+<td>ViT</td>
+<td align="right">无</td>
+<td align="right">401M / 27 层</td>
+<td align="right">原生视觉</td>
+</tr>
+<tr>
+<td>vocabulary</td>
+<td align="right">160K</td>
+<td align="right">160K</td>
+<td align="right">不变</td>
+</tr>
+<tr>
+<td>MTP</td>
+<td align="right">1 层</td>
+<td align="right">训练时 1 层</td>
+<td align="right">后续改造成 draft</td>
+</tr>
+</tbody></table>
+<p>官方发布配置还给出以下实现级参数：</p>
+<ul>
+<li><code>hidden_size = 7168</code></li>
+<li><code>num_hidden_layers = 93</code></li>
+<li><code>num_attention_heads = 96</code></li>
+<li>KDA <code>head_dim = 128</code></li>
+<li>KDA ShortConv kernel size = 4</li>
+<li><code>gate_lower_bound = -5</code></li>
+<li>MLA <code>q_lora_rank = 1536</code></li>
+<li>MLA <code>kv_lora_rank = 512</code></li>
+<li><code>attn_res_block_size = 12</code></li>
+<li><code>num_experts = 896</code></li>
+<li><code>num_experts_per_token = 16</code></li>
+<li><code>num_shared_experts = 2</code></li>
+<li><code>routed_expert_hidden_size = 3584</code></li>
+<li>SiTU 参数 <code>beta_1 = 4</code>、<code>beta_2 = 25</code></li>
+<li><code>max_position_embeddings = 1,048,576</code></li>
+</ul>
+<p>来源：<a href="../k3_tech_report.pdf">K3 报告表 1</a>、<a href="https://huggingface.co/moonshotai/Kimi-K3/blob/main/config.json" target="_blank" rel="noreferrer">官方 config.json</a>。</p>
+<h3 id="2-2-一层到整网的数据流">2.2 一层到整网的数据流</h3>
+<p>除第一层 dense FFN 外，主干大体可以理解为：</p>
+<pre><code class="language-text">AttnRes 从 embedding / 历史 block 表示中选择输入
+        ↓
+RMSNorm
+        ↓
+KDA 或 Gated MLA
+        ↓
+输出门控 + 线性映射
+        ↓
+AttnRes / 当前 block 累积
+        ↓
+RMSNorm
+        ↓
+Stable LatentMoE
+  ├─ 2 个 shared experts：处理通用变换
+  └─ 896 个 routed experts 中选 16 个：处理专门变换
+        ↓
+回到残差/AttnRes 流
+</code></pre>
+<p>注意力层按以下顺序重复：</p>
+<pre><code class="language-text">KDA -&gt; KDA -&gt; KDA -&gt; Gated MLA
+</code></pre>
+<p>总共有 23 组这样的 4 层结构，即 69 KDA + 23 MLA；主干末尾再加 1 个 Gated MLA，保证最终一层一定能做全局 attention，因此合计 24 MLA、93 层。</p>
+<h3 id="2-3-三维信息流">2.3 三维信息流</h3>
+<p><figure class="diagram-card">
+        <figcaption>技术关系图</figcaption>
+        <pre class="mermaid">flowchart LR
+    X[&quot;输入 token / visual token&quot;] --&gt; S[&quot;序列混合&quot;]
+    X --&gt; D[&quot;深度混合&quot;]
+    X --&gt; C[&quot;通道混合&quot;]
+
+    S --&gt; KDA[&quot;3 x KDA\n固定大小 recurrent state\n低成本长序列&quot;]
+    S --&gt; MLA[&quot;1 x Gated MLA\n全局 token-token attention&quot;]
+
+    D --&gt; AR[&quot;Block AttnRes\n选择 embedding 和历史 block&quot;]
+
+    C --&gt; MOE[&quot;Stable LatentMoE\n2 shared + Top-16/896 routed&quot;]
+
+    KDA --&gt; H[&quot;统一 backbone 表示&quot;]
+    MLA --&gt; H
+    AR --&gt; H
+    MOE --&gt; H</pre>
+      </figure></p>
+<figure class="paper-figure">
+  <a href="https://github.com/MoonshotAI/Kimi-K3/blob/main/k3_tech_report.pdf#page=3" target="_blank" rel="noreferrer"><img src="../../../assets/k3/fig-2-architecture.png" alt="Kimi K3 原报告 Figure 2：模型总体架构"></a>
+  <figcaption><strong>原报告 Figure 2（PDF 第 3 页）。</strong>这张图是理解全文的主索引：右侧给出 3×KDA + 1×Gated MLA 的 block、Stable LatentMoE 与 AttnRes；左侧展开 KDA 和 MoE；底部给出 MoonViT-V2 输入路径。下文各模块都可回到这张图定位。</figcaption>
+</figure>
+
+<hr>
+<h2 id="3-技术谱系总图">3. 技术谱系总图</h2>
+<p>本文把技术关系分成两类：</p>
+<ul>
+<li><strong>实线</strong>：K3 报告明确使用了 <code>introduced by</code>、<code>follows</code>、<code>adopts</code>、<code>building on</code> 等表述，或组件名称和实现关系本身足以确认结构继承；</li>
+<li><strong>虚线</strong>：K3 报告引用了相关工作，或两个机制在功能上明显相近，但公开材料不足以确认直接派生。</li>
+</ul>
+<p>因此，虚线只表示“相关但非直接祖先”，不能读成“Moonshot 一定参考了该方法”。相似设计既可能来自文献影响，也可能是面对相同工程约束时的独立收敛。</p>
+<p><figure class="diagram-card">
+        <figcaption>技术关系图</figcaption>
+        <pre class="mermaid">flowchart LR
+    FWP[&quot;Delta rule / Fast Weight Programmers\nSchlag et al., 2021&quot;] --&gt; DN[&quot;DeltaNet&quot;]
+    M2[&quot;Mamba-2 / SSD\nDao &amp; Gu, 2024&quot;] --&gt; GDN[&quot;Gated DeltaNet\nICLR 2025&quot;]
+    DN --&gt; GDN
+    GDN --&gt; KL[&quot;Kimi Linear / KDA\n2025&quot;]
+    KL --&gt; K3KDA[&quot;K3 KDA\nlower-bounded decay\nfull-rank output gate&quot;]
+
+    MHA[&quot;Transformer MHA\n2017&quot;] --&gt; MLA0[&quot;MLA\nDeepSeek-V2, 2024&quot;]
+    MLA0 --&gt; K2MLA[&quot;Kimi K2 / K2.5 MLA&quot;]
+    KL --&gt; HMLA[&quot;Kimi Linear Hybrid KDA-MLA\nNoPE MLA&quot;]
+    K2MLA --&gt; HMLA
+    HMLA --&gt; GMLA[&quot;K3 Gated MLA\nfull-rank channel gate&quot;]
+    GA[&quot;Gated Attention\n2025&quot;] -.-&gt; K3KDA
+    GA -.-&gt; GMLA
+
+    linkStyle 10,11 stroke-dasharray: 8 5,stroke-width:3px</pre>
+      </figure></p>
+<p><figure class="diagram-card">
+        <figcaption>技术关系图</figcaption>
+        <pre class="mermaid">flowchart LR
+    RES[&quot;ResNet residual\n2015&quot;] --&gt; PRE[&quot;Transformer PreNorm residual&quot;]
+    PRE --&gt; ATTNR[&quot;Attention Residuals\n2026&quot;]
+    ATTNR --&gt; BATTNR[&quot;Block AttnRes&quot;]
+    BATTNR --&gt; K3AR[&quot;K3: 12 layers/block\n8 layer-blocks + embedding&quot;]</pre>
+      </figure></p>
+<p><figure class="diagram-card">
+        <figcaption>技术关系图</figcaption>
+        <pre class="mermaid">flowchart LR
+    GSMOE[&quot;GShard / standard Top-k MoE&quot;] --&gt; DSMOE[&quot;DeepSeekMoE\nfine-grained + shared experts&quot;]
+    DSMOE --&gt; LMOE[&quot;LatentMoE\n2026&quot;]
+    LMOE --&gt; SLMOE[&quot;Stable LatentMoE&quot;]
+    DSV3[&quot;DeepSeek-V3\naux-loss-free bias routing&quot;] --&gt; QB[&quot;Quantile Balancing&quot;]
+    QB --&gt; SLMOE
+    QB0[&quot;Optimal assignment / BASE Layers / BIP\nSu 2026&quot;] -.-&gt; QB
+    GLU[&quot;GLU, 2017&quot;] --&gt; SWI[&quot;SwiGLU, 2020&quot;]
+    SWI --&gt; SITU[&quot;SiTU-GLU\nK3&quot;]
+    SITU --&gt; SLMOE
+
+    linkStyle 5 stroke-dasharray: 8 5,stroke-width:3px</pre>
+      </figure></p>
+<p><figure class="diagram-card">
+        <figcaption>技术关系图</figcaption>
+        <pre class="mermaid">flowchart LR
+    KV[&quot;Kimi-VL MoonViT\n2025&quot;] --&gt; K25[&quot;Kimi K2.5 MoonViT-3D\nSigLIP init&quot;]
+    K25 --&gt; MV2[&quot;MoonViT-V2\nfrom scratch NTP&quot;]
+
+    MUON[&quot;Muon&quot;] --&gt; MOON[&quot;Moonlight: scalable Muon&quot;]
+    MOON --&gt; MCLIP[&quot;Kimi K2 MuonClip&quot;]
+    MCLIP --&gt; PHM[&quot;K3 Per-Head Muon&quot;]</pre>
+      </figure></p>
+<p>三条虚线的具体含义如下：</p>
+<ul>
+<li><strong>Gated Attention -&gt; K3 KDA / Gated MLA</strong>：K3 报告在两处 data-dependent output gate 的说明中都引用了 Gated Attention [100]，因此存在明确的文献关联；但报告没有说明 K3 的 full-rank channel gate 是否由该实现直接改造而来。两者的门控粒度也不同，所以这里只标为相关工作。</li>
+<li><strong>Optimal assignment / BASE Layers / BIP -&gt; Quantile Balancing</strong>：K3 报告明确引用苏剑林对最优分配的讨论 [112]；BASE Layers 和 BIP 是本文用于帮助理解同类优化视角的外部对照，并非 K3 报告声明的直接祖先。</li>
+</ul>
+<hr>
+<h2 id="4-模型架构详解">4. 模型架构详解</h2>
+<h3 id="4-1-hybrid-attention-的设计动机">4.1 Hybrid Attention 的设计动机</h3>
+<p>全 softmax attention 的优势是任意 query 都能直接比较所有历史 token，但训练复杂度为 <span class="math-inline">\(O(T^2)\)</span>，推理 KV cache 随上下文线性增长。线性 attention/KDA 把历史压缩进固定大小状态，复杂度和 cache 更友好，但固定状态本质上存在信息容量瓶颈。</p>
+<p>K3 的折中是：</p>
+<ul>
+<li>连续 3 层 KDA：承担局部、位置敏感、recency-aware 的大部分序列混合；</li>
+<li>第 4 层 Gated MLA：恢复不受固定状态容量约束的全局 token-token 交互；</li>
+<li>最后一层额外 MLA：确保 logits 前最近一次混合是全局 attention。</li>
+</ul>
+<p>K3 报告明确写道其 MLA 设置“follows the hybrid design of Kimi Linear”。Kimi Linear 已经验证了 KDA 与 MLA 的 layerwise hybrid，并报告相对 full MLA 最多节省 75% KV cache、在 1M context decode 最高提高 6 倍吞吐。K3 的主要变化是把这条路线扩大到 2.8T，并修改 KDA decay、输出门控和 MLA 门控。</p>
+<p>来源：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2510.26692" target="_blank" rel="noreferrer">Kimi Linear: An Expressive, Efficient Attention Architecture</a></li>
+<li><a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noreferrer">DeepSeek-V2 的 MLA</a></li>
+</ul>
+<h3 id="4-2-kimi-delta-attention-kda">4.2 Kimi Delta Attention（KDA）</h3>
+<h4 id="4-2-1-技术背景与明确继承关系">4.2.1 技术背景与明确继承关系</h4>
+<p>KDA 可以沿下列公开技术脉络理解。前几项给出历史背景；Kimi Linear → K3 KDA 则是 K3 报告明确陈述的继承关系：</p>
+<ol>
+<li><strong>Delta rule / Fast Weight Programmers</strong>：把线性 attention 的状态看成一个可在线更新的 fast-weight matrix，新写入前先修正旧记忆在 key 方向上的预测误差。<br>来源：<a href="https://proceedings.mlr.press/v139/schlag21a.html" target="_blank" rel="noreferrer">Linear Transformers Are Secretly Fast Weight Programmers</a>。</li>
+<li><strong>DeltaNet</strong>：把 delta rule 做成可并行的线性 Transformer recurrence。</li>
+<li><strong>Gated DeltaNet（GDN）</strong>：把 Mamba-2 的 forget gating 与 delta rule 结合，既能整体遗忘，又能沿指定 key 方向做精确改写。<br>来源：<a href="https://openreview.net/forum?id=r8H7xhYPwz" target="_blank" rel="noreferrer">Gated Delta Networks</a>。</li>
+<li><strong>Kimi Linear / KDA</strong>：把 GDN 的标量/较粗粒度衰减扩展为 key-channel-wise forget gate，使有限 recurrent state 的不同通道能有不同记忆寿命，并提出硬件友好的 chunkwise 算法。<br>来源：<a href="https://arxiv.org/abs/2510.26692" target="_blank" rel="noreferrer">Kimi Linear</a>。</li>
+<li><strong>K3 KDA</strong>：报告明确以 Kimi Linear 的 KDA 为基础，增加有下界的 decay 参数化和全秩输出门控，其中 lower-bounded decay 直接服务于 BF16 数值范围与 Tensor Core 路径。</li>
+</ol>
+<h4 id="4-2-2-状态更新机制">4.2.2 状态更新机制</h4>
+<p>单个 head 的状态为：</p>
+<p><div class="math-block">\[S_t\in\mathbb{R}^{d_k\times d_v},
+\qquad q_t,k_t\in\mathbb{R}^{d_k},
+\qquad v_t\in\mathbb{R}^{d_v}.\]</div></p>
+<p>K3 使用：</p>
+<p><div class="math-block">\[S_t=
+\left(I-\beta_t k_tk_t^\top\right)
+\operatorname{Diag}(\alpha_t)S_{t-1}
++\beta_t k_tv_t^\top,
+\qquad
+\tilde o_t=S_t^\top q_t.\]</div></p>
+<p>可以把这一步拆成三件事：</p>
+<ol>
+<li><span class="math-inline">\(\operatorname{Diag}(\alpha_t)S_{t-1}\)</span>：<br>每个 key channel 用自己的保留率 <span class="math-inline">\(\alpha_{t,j}\)</span> 衰减旧状态。它不是“一整个 head 一个 forget gate”，而是一个 head 内不同通道拥有不同记忆寿命。</li>
+<li><span class="math-inline">\((I-\beta_tk_tk_t^\top)\)</span>：<br>沿当前 key <span class="math-inline">\(k_t\)</span> 指向的子空间擦除/修正旧预测，避免简单累加导致相同 key 的记忆互相污染。</li>
+<li><span class="math-inline">\(+\beta_tk_tv_t^\top\)</span>：<br>按写强度 <span class="math-inline">\(\beta_t\)</span> 把当前 key-value 关联写入状态。</li>
+</ol>
+<p>最后用 query <span class="math-inline">\(q_t\)</span> 从状态中读取，即 <span class="math-inline">\(\tilde o_t=S_t^\top q_t\)</span>。</p>
+<p>这与 softmax attention 的区别是：</p>
+<ul>
+<li>softmax attention 保存历史 K/V，并在 query 到来时重新访问它们；</li>
+<li>KDA 每来一个 token 就把历史压缩进 <span class="math-inline">\(S_t\)</span>，以后只读取这个固定尺寸状态。</li>
+</ul>
+<p>因此 KDA 的推理状态不随 token 数继续增长，但远古上下文不再以逐 token 原始形式存在，而是被压缩进有限状态。</p>
+<h4 id="4-2-3-q-k-v-写门和遗忘门如何产生">4.2.3 q、k、v、写门和遗忘门如何产生</h4>
+<p>每个 head 的主要分支是：</p>
+<p><div class="math-block">\[q_t^h,k_t^h=
+\operatorname{L2Norm}\left(
+\operatorname{Swish}\left(
+\operatorname{ShortConv}(W_{q/k}^h x_t)
+\right)\right),\]</div></p>
+<p><div class="math-block">\[v_t^h=
+\operatorname{Swish}\left(
+\operatorname{ShortConv}(W_v^h x_t)
+\right),
+\qquad
+\beta_t^h=\operatorname{Sigmoid}(W_\beta^h x_t).\]</div></p>
+<p>遗忘门的 logit 使用低秩投影：</p>
+<p><div class="math-block">\[z_t^h=W_\alpha^\uparrow W_\alpha^\downarrow x_t+b_\alpha^h.\]</div></p>
+<p>各操作的作用是：</p>
+<ul>
+<li><code>ShortConv</code>：用很短的局部卷积在进入 recurrence 前注入邻域模式；官方配置 kernel size 为 4。</li>
+<li><code>Swish</code>：提供平滑非线性。</li>
+<li><code>L2Norm(q,k)</code>：限制 q/k 尺度，改善 delta update 和读出的稳定性。</li>
+<li><span class="math-inline">\(\beta\)</span>：控制当前 token 写多重。</li>
+<li><span class="math-inline">\(\alpha\)</span>：控制旧状态各通道保留多少。</li>
+</ul>
+<h4 id="4-2-4-chunkwise-parallel-解决-recurrence-不适合-gpu-的问题">4.2.4 chunkwise parallel：解决 recurrence 不适合 GPU 的问题</h4>
+<p>逐 token recurrence 有严格串行依赖。KDA 按 chunk 执行：</p>
+<ul>
+<li><strong>chunk 之间</strong>：传递 recurrent state，仍然递归；</li>
+<li><strong>chunk 内部</strong>：把 causal interactions 变成下三角矩阵运算，一次并行算完。</li>
+</ul>
+<p>设 chunk size 为 <span class="math-inline">\(C\)</span>，从位置 <span class="math-inline">\(i\)</span> 到 <span class="math-inline">\(j\)</span> 的累计 channel decay 为：</p>
+<p><div class="math-block">\[\gamma_{[t]}^{i\rightarrow j}
+=\prod_{r=i}^{j}\alpha_{[t]}^r.\]</div></p>
+<p>输出被拆成：</p>
+<p><div class="math-block">\[O_{[t]}=
+\underbrace{
+\left(\Gamma_{[t]}^{1\rightarrow C}\odot Q_{[t]}\right)S_{[t]}
+}_{\text{来自此前 chunk}}
++
+\underbrace{
+A_{[t]}\tilde V_{[t]}
+}_{\text{当前 chunk 内部}}.\]</div></p>
+<p>第一项读取进 chunk 前的历史状态；第二项处理 chunk 内的 causal token-token 作用。这样训练时能使用大矩阵乘法，而不是启动 <span class="math-inline">\(C\)</span> 次小 recurrence kernel。</p>
+<p>完整 UT transform 的推导来自 Kimi Linear，K3 报告只给了结果形式。</p>
+<h4 id="4-2-5-k3-改动一-lower-bounded-decay">4.2.5 K3 改动一：lower-bounded decay</h4>
+<p>Kimi Linear 使用类似 GDN/Mamba-2 的 negative-Softplus：</p>
+<p><div class="math-block">\[g_t=-e^A\operatorname{Softplus}(z_t)\in(-\infty,0),
+\qquad \alpha_t=e^{g_t}.\]</div></p>
+<p>问题出在 chunkwise 计算需要使用累计 decay 的倒数。若 <span class="math-inline">\(g_t\)</span> 可以无限负，<span class="math-inline">\(\Gamma^{-1}\)</span> 可能溢出。Kimi Linear 为此在 16-token diagonal tile 中保留逐 position-pair 的特殊计算路径，成为 intra-chunk 瓶颈。</p>
+<p>K3 改成：</p>
+<p><div class="math-block">\[g_t^h=g_{\min}\operatorname{Sigmoid}(e^{A_h}z_t^h),
+\qquad g_{\min}=-5,\]</div></p>
+<p><div class="math-block">\[\alpha_t^h=e^{g_t^h}\in(e^{-5},1).\]</div></p>
+<p>对 16-token tile，累计 log-decay 被限制在 <span class="math-inline">\((-80,0)\)</span>，倒数最大约 <span class="math-inline">\(e^{80}\)</span>，仍在 BF16 动态范围内。这样 diagonal 和 off-diagonal causal tiles 都可以走 dense Tensor Core matmul，删除逐位置 diagonal path。</p>
+<p>这里体现的是典型 algorithm-system co-design：</p>
+<ul>
+<li>表面上只是换一个激活函数；</li>
+<li>实际目标是给数值范围提供硬保证；</li>
+<li>有了这个保证，kernel 才能统一为 Tensor Core 路径。</li>
+</ul>
+<p>相关 lower-bounded recurrence gate 工作包括：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2404.07904" target="_blank" rel="noreferrer">HGRN2</a></li>
+<li><a href="https://arxiv.org/abs/2402.19427" target="_blank" rel="noreferrer">Griffin</a></li>
+<li><a href="https://arxiv.org/abs/2503.14456" target="_blank" rel="noreferrer">RWKV-7</a></li>
+</ul>
+<figure class="paper-figure">
+  <a href="https://github.com/MoonshotAI/Kimi-K3/blob/main/k3_tech_report.pdf#page=5" target="_blank" rel="noreferrer"><img src="../../../assets/k3/fig-3-kda-decay.png" alt="Kimi K3 原报告 Figure 3：lower-bounded decay 与 KDA kernel 路径"></a>
+  <figcaption><strong>原报告 Figure 3（PDF 第 5 页）。</strong>左图是参数化差异，右图才是系统收益：有界 log-decay 使 causal tile 不再需要单独的 position-pair diagonal 计算，能够统一走 dense Tensor Core matmul。它直接支撑“这不是纯粹换激活函数，而是算法—算子协同”的判断。</figcaption>
+</figure>
+
+<h4 id="4-2-6-k3-改动二-full-rank-output-gate">4.2.6 K3 改动二：full-rank output gate</h4>
+<p>KDA recurrent output先做 head-wise RMSNorm，再做：</p>
+<p><div class="math-block">\[y_t=
+W_o\left[
+\operatorname{Sigmoid}(W_gx_t)
+\odot
+\operatorname{RMSNorm}(\tilde o_t)
+\right].\]</div></p>
+<p>Kimi Linear 的输出门是低秩参数化；K3 改成输入相关的全秩 <span class="math-inline">\(W_g\)</span>。这意味着每个 token 可独立控制读出结果的各通道，而不是只能依赖较低容量的门控。</p>
+<p>原报告的直接表述是：</p>
+<blockquote>
+<p>“Kimi K3 changes KDA’s output gate … to an input-dependent full-rank projection.”</p>
+</blockquote>
+<p>紧接着，报告将这一操作称为 <code>data-dependent output gating</code>，并引用 <a href="https://arxiv.org/abs/2505.06708" target="_blank" rel="noreferrer">Gated Attention for Large Language Models</a> [100]。这能够确认两者存在文献关联，但不能据此断言 K3 的实现直接源自该论文：报告没有写明 <code>derived from</code> 或 <code>inspired by</code>，也没有给出逐项实现映射。</p>
+<p>从结构上看，两者确实相近，但并不相同：</p>
+<ul>
+<li>Gated Attention 论文重点讨论 SDPA 后的 head-specific sigmoid gate；</li>
+<li>K3 KDA 使用输入相关、full-rank、channel-wise 的输出 gate；</li>
+<li>因而更稳妥的结论是：二者共享“让当前输入再次调制 attention 读出”的设计方向；K3 报告把 [100] 作为相关依据，而 full-rank channel 参数化属于 K3 在本文中的具体实现。</li>
+</ul>
+<p>这种相似性可能来自对先行工作的参考，也可能是面对输出噪声、通道选择和训练稳定性问题时的独立收敛；仅凭公开文本无法进一步区分。</p>
+<h4 id="4-2-7-kda-的收益和代价">4.2.7 KDA 的收益和代价</h4>
+<p>收益：</p>
+<ul>
+<li>训练和 prefill 可以做到近线性序列复杂度；</li>
+<li>decode 使用固定大小 recurrent state，不需要为每个 KDA 层保存随 <span class="math-inline">\(T\)</span> 增长的 KV；</li>
+<li>NoPE 下无需做 RoPE scaling；</li>
+<li>recurrent state 便于跨设备传递和 prefix checkpoint。</li>
+</ul>
+<p>代价：</p>
+<ul>
+<li>历史 token 被压缩进固定容量状态，存在信息瓶颈；</li>
+<li>recurrence 对 GPU 并行不友好，需要 FlashKDA 和 KCP；</li>
+<li>speculative decoding 回滚困难，因为 state 已经被原地推进；</li>
+<li>KDA state 虽不随序列增长，但单个 state 是 <span class="math-inline">\(d_k\times d_v\)</span>，不是“零 cache”。</li>
+</ul>
+<h3 id="4-3-gated-mla">4.3 Gated MLA</h3>
+<h4 id="4-3-1-mla-从哪里来">4.3.1 MLA 从哪里来</h4>
+<p>MLA（Multi-head Latent Attention）由 DeepSeek-V2 提出；K3 报告也明确使用了 “introduced in DeepSeek-V2” 的表述。核心是先把每个 token 的 KV 信息压到低维 latent：</p>
+<p><div class="math-block">\[c_t^{KV}=W^{DKV}x_t,\]</div></p>
+<p>再在 attention 计算时通过 learned up-projection 重建各 head 的 content key/value，而不是永久缓存所有 head 的完整 K/V。</p>
+<p>因此：</p>
+<ul>
+<li>MHA 缓存各 head 的完整 K/V；</li>
+<li>MLA 主要缓存共享的低维 <span class="math-inline">\(c_t^{KV}\)</span>；</li>
+<li>decode 的 cache 容量和显存带宽显著降低。</li>
+</ul>
+<p>谱系：</p>
+<pre><code class="language-text">Transformer MHA
+  -&gt; DeepSeek-V2 MLA
+  -&gt; DeepSeek-V3 / Kimi K2 / Kimi K2.5
+  -&gt; Kimi Linear 的 KDA-MLA hybrid
+  -&gt; K3 Gated MLA
+</code></pre>
+<p>来源：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noreferrer">DeepSeek-V2</a></li>
+<li><a href="https://arxiv.org/abs/2507.20534" target="_blank" rel="noreferrer">Kimi K2</a></li>
+<li><a href="https://arxiv.org/abs/2602.02276" target="_blank" rel="noreferrer">Kimi K2.5</a></li>
+<li><a href="https://arxiv.org/abs/2510.26692" target="_blank" rel="noreferrer">Kimi Linear</a></li>
+</ul>
+<h4 id="4-3-2-mla-采用-nope-的设计动机">4.3.2 MLA 采用 NoPE 的设计动机</h4>
+<p>K2/K2.5 的 MLA 使用显式 positional encoding；K3 跟随 Kimi Linear，在所有 MLA 层使用 NoPE：</p>
+<ul>
+<li>MLA 的 query/key 不施加 RoPE 或其他显式位置编码；</li>
+<li>位置信息主要由相邻的 KDA 通过 recurrence、decay 和 ShortConv 隐式提供；</li>
+<li>MLA 专注于不受位置编码约束的全局内容匹配。</li>
+</ul>
+<p>NoPE 并不意味着模型完全丧失顺序信息。其作用范围是：</p>
+<blockquote>
+<p>MLA 分支不直接把绝对/相对位置变换写进 q/k，但输入 MLA 的 hidden state 已经经过有方向的 causal KDA 和此前层计算，所以仍携带顺序信息。</p>
+</blockquote>
+<p>这样做还有一个工程收益：从 64K 扩展到 1M 时，不需要修改 RoPE base、做插值或 YaRN。</p>
+<p>来源：</p>
+<ul>
+<li>K3 报告 2.1.2 和 3.4</li>
+<li><a href="https://arxiv.org/abs/2510.26692" target="_blank" rel="noreferrer">Kimi Linear</a></li>
+<li>对比用的长上下文 RoPE 扩展：<a href="https://arxiv.org/abs/2309.00071" target="_blank" rel="noreferrer">YaRN</a></li>
+</ul>
+<h4 id="4-3-3-gated-mla-的构成与门控位置">4.3.3 Gated MLA 的构成与门控位置</h4>
+<p>普通 MLA 得到未门控输出 <span class="math-inline">\(\tilde o_t\)</span>，K3 增加：</p>
+<p><div class="math-block">\[y_t=
+W_o\left[
+\operatorname{Sigmoid}(W_gx_t)\odot \tilde o_t
+\right].\]</div></p>
+<p>所以 Gated MLA 可以准确描述为：</p>
+<pre><code class="language-text">DeepSeek-V2 的 MLA
++ Kimi Linear 的 NoPE hybrid 设计
++ K3 报告引用 [100] 的 data-dependent output gating
++ K3 的 full-rank、channel-wise gate 参数化
+= K3 Gated MLA
+</code></pre>
+<p>门控的含义不是决定“看哪些历史 token”。历史 token 的权重仍由 MLA attention 决定。门控发生在 attention 聚合之后，决定“从本次全局 attention 读出的各通道，有多少送给后续网络”。</p>
+<p>这里的证据强度需要拆开：</p>
+<ul>
+<li><strong>MLA → K3 MLA</strong>：报告明确说明 MLA 由 DeepSeek-V2 提出，并被 Kimi K2/K2.5 采用；</li>
+<li><strong>Kimi Linear hybrid → K3 NoPE MLA</strong>：报告明确写了 <code>follows the hybrid design of Kimi Linear</code>；</li>
+<li><strong>Gated Attention [100] ↔ K3 output gate</strong>：报告有引用关系和功能相似性，但没有声明直接派生，所以本文不把 [100] 写成 K3 gate 的唯一或确定来源。</li>
+</ul>
+<p>原报告对 Gated MLA 的一句话定义是：</p>
+<blockquote>
+<p>“Kimi K3 augments MLA with an input-dependent, channel-wise full-rank output gate.”</p>
+</blockquote>
+<h4 id="4-3-4-fp32-attention-output">4.3.4 FP32 attention output</h4>
+<p>报告引用低精度 FlashAttention 误差研究，认为低精度输出的有偏舍入误差可能累积并引发训练不稳定，因此训练时保留 FP32 attention output。</p>
+<p>这会让 output tile 的片上占用翻倍，于是 K3 kernel 不再让它与 query tile 争 shared memory，而是重新安排为与 KV staging buffers 重叠，以便保留更深的 KV pipeline。</p>
+<p>来源：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2510.04212" target="_blank" rel="noreferrer">Why Low-Precision Transformer Training Fails: An Analysis on Flash Attention</a></li>
+</ul>
+<h3 id="4-4-kda-与-gated-mla-的分工">4.4 KDA 与 Gated MLA 的分工</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>KDA</th>
+<th>Gated MLA</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>历史表示</td>
+<td>固定大小 recurrent state</td>
+<td>每 token latent KV</td>
+</tr>
+<tr>
+<td>序列复杂度</td>
+<td>近线性</td>
+<td>全局 attention，仍随序列增长</td>
+</tr>
+<tr>
+<td>位置感</td>
+<td>recurrence、decay、ShortConv 隐式携带</td>
+<td>q/k 本身 NoPE</td>
+</tr>
+<tr>
+<td>长距离信息</td>
+<td>被压缩进有限状态</td>
+<td>可以直接访问历史 token</td>
+</tr>
+<tr>
+<td>主要作用</td>
+<td>高频、低成本 sequence mixing</td>
+<td>周期性恢复高容量全局交互</td>
+</tr>
+<tr>
+<td>主要系统难点</td>
+<td>recurrence 并行、state 管理</td>
+<td>长上下文 KV 和全局 attention 成本</td>
+</tr>
+</tbody></table>
+<p>三比一不是“每四层做一次局部 attention”，因为 KDA 并非局部窗口，它仍然通过状态承载整个前缀。更准确的理解是：</p>
+<blockquote>
+<p>KDA 以压缩记忆持续处理所有历史；MLA 每隔几层重新提供一次不经固定状态压缩的全局读取通道。</p>
+</blockquote>
+<h3 id="4-5-attention-residuals-沿深度做-attention">4.5 Attention Residuals：沿深度做 attention</h3>
+<h4 id="4-5-1-问题定义">4.5.1 问题定义</h4>
+<p>普通 PreNorm residual 可以展开为：</p>
+<p><div class="math-block">\[h_l=h_1+\sum_{i=1}^{l-1}f_i(h_i).\]</div></p>
+<p>所有历史层输出都以固定权重 1 累加到一个 residual stream。随着深度增加：</p>
+<ul>
+<li>hidden magnitude 可能增长；</li>
+<li>单层新增内容相对总 residual 的比例变小；</li>
+<li>早期表示无法被后层“有选择地重新取回”；</li>
+<li>深度方向像把全部历史压缩进一个 RNN state。</li>
+</ul>
+<p>AttnRes 的核心类比是：</p>
+<pre><code class="language-text">Transformer 用 attention 取代时间维度上的固定 recurrence；
+AttnRes 用 attention 取代深度维度上的固定 residual accumulation。
+</code></pre>
+<p>历史背景与实现依据：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/1512.03385" target="_blank" rel="noreferrer">Deep Residual Learning / ResNet</a> 与 <a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">Attention Is All You Need</a>：普通 residual stream 的历史背景；</li>
+<li><a href="https://arxiv.org/abs/2603.15031" target="_blank" rel="noreferrer">Attention Residuals</a>：K3 明确采用的 AttnRes 方法。</li>
+</ul>
+<h4 id="4-5-2-full-attnres">4.5.2 Full AttnRes</h4>
+<p>第 <span class="math-inline">\(l\)</span> 层有一个可学习 pseudo-query：</p>
+<p><div class="math-block">\[q_l=w_l\in\mathbb{R}^{d}.\]</div></p>
+<p>key/value 是 embedding 和所有此前层输出：</p>
+<p><div class="math-block">\[k_i=v_i=
+\begin{cases}
+h_1,&amp;i=0\\
+f_i(h_i),&amp;1\le i\le l-1.
+\end{cases}\]</div></p>
+<p>权重为：</p>
+<p><div class="math-block">\[\alpha_{i\rightarrow l}=
+\frac{\exp(q_l^\top\operatorname{RMSNorm}(k_i))}
+{\sum_{j=0}^{l-1}\exp(q_l^\top\operatorname{RMSNorm}(k_j))},\]</div></p>
+<p><div class="math-block">\[h_l=\sum_{i=0}^{l-1}\alpha_{i\rightarrow l}v_i.\]</div></p>
+<p>几个重要细节：</p>
+<ul>
+<li>pseudo-query <span class="math-inline">\(w_l\)</span> 是每层学习的参数，不由当前 token 动态生成；</li>
+<li>但 key 是当前 token 在各深度的表示，所以权重仍然是 input/token-dependent；</li>
+<li>RMSNorm 防止某一层仅凭输出幅值更大就垄断 softmax；</li>
+<li>depth <span class="math-inline">\(L&lt;100\)</span>，因此 <span class="math-inline">\(O(L^2d)\)</span> 算术不是主要问题；</li>
+<li>真正昂贵的是保留所有层输出所需的 <span class="math-inline">\(O(Ld)\)</span> activation memory，以及 pipeline stage 间通信。</li>
+</ul>
+<h4 id="4-5-3-block-attnres">4.5.3 Block AttnRes</h4>
+<p>K3 没有直接使用 Full AttnRes，而是把 93 层按每 12 层分 block：</p>
+<ul>
+<li>block 1：层 1-12</li>
+<li>block 2：层 13-24</li>
+<li>...</li>
+<li>block 7：层 73-84</li>
+<li>block 8：层 85-93，最后一个是 partial block</li>
+<li>embedding 作为额外 source</li>
+</ul>
+<p>因此是 8 个 layer blocks，加 embedding 后共有 9 个 depth sources。</p>
+<p>block 内不保存每一层作为跨 block 的独立 value，而是累计：</p>
+<p><div class="math-block">\[b_n=\sum_{j\in\mathcal{B}_n}f_j(h_j).\]</div></p>
+<p>当前 block 的第一层只 attend：</p>
+<p><div class="math-block">\[[b_0,b_1,\ldots,b_{n-1}],\]</div></p>
+<p>随后层再加入当前 block 已累积的 partial sum：</p>
+<p><div class="math-block">\[[b_0,b_1,\ldots,b_{n-1},b_n^{i-1}].\]</div></p>
+<p>这样：</p>
+<ul>
+<li>跨 block：用 attention 有选择地取历史；</li>
+<li>block 内：仍采用高效的顺序累加；</li>
+<li>memory/通信从 <span class="math-inline">\(O(Ld)\)</span> 降到 <span class="math-inline">\(O(Nd)\)</span>；</li>
+<li>online softmax 可把跨 block 并行结果和当前 block partial sum 合并。</li>
+</ul>
+<h4 id="4-5-4-与-mhc-hyper-connections-的关系">4.5.4 与 mHC/Hyper-Connections 的关系</h4>
+<p>AttnRes 和 DeepSeek 的 mHC 都在改造 residual stream，但不是直接继承关系：</p>
+<ul>
+<li>mHC/Hyper-Connections 倾向于维护多个 residual streams，并通过受约束映射在 stream 之间混合；</li>
+<li>AttnRes 保存历史层或历史 block 表示，用 softmax 在深度维度做内容相关检索。</li>
+</ul>
+<p>因此更适合把它们视为“针对普通 residual 瓶颈的两条平行路线”，而不是“AttnRes 从 mHC 演化而来”。</p>
+<h3 id="4-6-stable-latentmoe">4.6 Stable LatentMoE</h3>
+<h4 id="4-6-1-谱系">4.6.1 谱系</h4>
+<pre><code class="language-text">标准 Top-k MoE / GShard
+  -&gt; DeepSeekMoE：更细粒度 routed experts + shared experts
+  -&gt; LatentMoE：shared path 保留全宽，routed experts 在 latent width 工作
+  -&gt; K3 Stable LatentMoE：
+       + routed aggregate 后 RMSNorm
+       + SiTU-GLU
+       + Quantile Balancing
+</code></pre>
+<p>来源：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2006.16668" target="_blank" rel="noreferrer">GShard</a></li>
+<li><a href="https://arxiv.org/abs/2401.06066" target="_blank" rel="noreferrer">DeepSeekMoE</a></li>
+<li><a href="https://arxiv.org/abs/2601.18089" target="_blank" rel="noreferrer">LatentMoE</a></li>
+</ul>
+<h4 id="4-6-2-数据路径">4.6.2 数据路径</h4>
+<p>对 <span class="math-inline">\(x\in\mathbb{R}^{7168}\)</span>：</p>
+<ol>
+<li>两个 shared experts 直接处理 full-width <span class="math-inline">\(x\)</span>，学习通用变换。</li>
+<li>routed path 先降到 latent：</li>
+</ol>
+<p><div class="math-block">\[z=W_\downarrow x\in\mathbb{R}^{3584}.\]</div></p>
+<ol start="3">
+<li>router 在 896 个 experts 中选 16 个，expert 在 latent space 中处理 <span class="math-inline">\(z\)</span>。</li>
+<li>对 16 个 expert 输出加权求和：</li>
+</ol>
+<p><div class="math-block">\[u=\sum_{i\in T_k(x)}p_iE_i^{routed}(W_\downarrow x).\]</div></p>
+<ol start="5">
+<li>聚合后 RMSNorm，再升回 7168：</li>
+</ol>
+<p><div class="math-block">\[y=
+\sum_{j=1}^{2}E_j^{shared}(x)
++
+W_\uparrow\operatorname{RMSNorm}(u).\]</div></p>
+<p>“16/896，sparsity 56”表示 routed expert pool 中每 token 只激活 <span class="math-inline">\(1/56\)</span>。但不能简单说“整模型只算 1/56”，因为 attention、shared experts、down/up projections、router 和其他非 expert 参数仍然每 token 执行。</p>
+<h4 id="4-6-3-latent-表示对-expert-pool-扩展的作用">4.6.3 Latent 表示对 expert pool 扩展的作用</h4>
+<p>普通 MoE 每激活一个 expert，都要：</p>
+<ul>
+<li>把完整 7168 维 token dispatch 到 expert rank；</li>
+<li>读取 full-width expert 权重；</li>
+<li>把完整 expert 输出传回。</li>
+</ul>
+<p>LatentMoE 让 routed path 在 3584 维工作：</p>
+<ul>
+<li>通信 payload 约减半；</li>
+<li>每个 routed expert 的输入输出更窄；</li>
+<li>在相近 active compute 下可以增加 expert pool 和 top-k，扩大“专家组合空间”。</li>
+</ul>
+<p>代价是多出 <span class="math-inline">\(W_\downarrow\)</span> 和 <span class="math-inline">\(W_\uparrow\)</span>，routed path 形成多段连续 GEMM，数值条件和激活尺度更难控制。这正是 K3 添加 Stable 三件套的原因。</p>
+<h4 id="4-6-4-稳定化一-routed-aggregate-后-rmsnorm">4.6.4 稳定化一：routed aggregate 后 RMSNorm</h4>
+<p>原 LatentMoE 把：</p>
+<p><div class="math-block">\[u=\sum_i p_iE_i(z)\]</div></p>
+<p>直接送入 <span class="math-inline">\(W_\uparrow\)</span>。不同 token 的 expert 组合和 router 权重不同，<span class="math-inline">\(u\)</span> 的尺度也会变化。K3 在上投影前做 RMSNorm：</p>
+<p><div class="math-block">\[W_\uparrow u
+\quad\rightarrow\quad
+W_\uparrow\operatorname{RMSNorm}(u).\]</div></p>
+<p>作用：</p>
+<ul>
+<li>隔离 expert mixture 的尺度变化；</li>
+<li>防止上投影继续放大 outlier；</li>
+<li>让 routed branch 与 shared branch 合并时更稳定。</li>
+</ul>
+<p>报告声称这一层 norm 同时改善 validation loss 和下游 benchmark，但没有公开单项数值表。</p>
+<h4 id="4-6-5-稳定化二-situ-glu">4.6.5 稳定化二：SiTU-GLU</h4>
+<h5 id="从-glu-到-swiglu">从 GLU 到 SwiGLU</h5>
+<p>GLU：</p>
+<p><div class="math-block">\[\operatorname{Sigmoid}(W_gx)\odot W_ux.\]</div></p>
+<p>SwiGLU：</p>
+<p><div class="math-block">\[\left(W_gx\cdot\operatorname{Sigmoid}(W_gx)\right)
+\odot W_ux.\]</div></p>
+<p>SwiGLU 的两个乘法因子都可能无界；当两边同时出现大坐标时，乘积会产生 activation outlier，低精度训练尤其危险。</p>
+<p>来源：</p>
+<ul>
+<li><a href="https://proceedings.mlr.press/v70/dauphin17a.html" target="_blank" rel="noreferrer">GLU / Language Modeling with Gated Convolutional Networks</a></li>
+<li><a href="https://arxiv.org/abs/2002.05202" target="_blank" rel="noreferrer">GLU Variants Improve Transformer / SwiGLU</a></li>
+</ul>
+<h5 id="k3-的-situ-glu">K3 的 SiTU-GLU</h5>
+<p>K3 对 gate 的线性因子和 up branch 分别做 smooth cap：</p>
+<p><div class="math-block">\[\operatorname{SiTU\mbox{-}GLU}(x)=
+\left[
+\beta_1\tanh\left(\frac{W_gx}{\beta_1}\right)
+\odot\operatorname{Sigmoid}(W_gx)
+\right]
+\odot
+\left[
+\beta_2\tanh\left(\frac{W_ux}{\beta_2}\right)
+\right],\]</div></p>
+<p>其中：</p>
+<p><div class="math-block">\[\beta_1=4,\qquad \beta_2=25.\]</div></p>
+<p>关键性质：</p>
+<ul>
+<li>原点附近 <span class="math-inline">\(\beta\tanh(z/\beta)=z+O(z^3/\beta^2)\)</span>，一阶行为接近 SwiGLU；</li>
+<li>大正值时两个线性因子都平滑饱和；</li>
+<li>每个输出坐标满足：</li>
+</ul>
+<p><div class="math-block">\[\|\operatorname{SiTU\mbox{-}GLU}(x)\|_\infty
+\le\beta_1\beta_2=100;\]</div></p>
+<ul>
+<li>相比 hard clamp，tanh 在边界附近仍有平滑梯度。</li>
+</ul>
+<p>SiTU-GLU 是 K3 报告提出的组件。报告同时列举了 <a href="https://arxiv.org/abs/2605.25704" target="_blank" rel="noreferrer">PowLU</a> 等稳定激活工作，但没有声明 SiTU 从 PowLU 派生；本文仅将其视为同期相关路线。</p>
+<figure class="paper-figure">
+  <a href="https://github.com/MoonshotAI/Kimi-K3/blob/main/k3_tech_report.pdf#page=7" target="_blank" rel="noreferrer"><img src="../../../assets/k3/fig-4-situ-glu.png" alt="Kimi K3 原报告 Figure 4：GLU、SwiGLU 与 SiTU-GLU 对比"></a>
+  <figcaption><strong>原报告 Figure 4（PDF 第 7 页）。</strong>SiTU-GLU 在原点附近保留 SwiGLU 的局部响应，却把两个相乘分支都平滑限制住；红线趋近的 100 正是 <span class="math-inline">\(\beta_1\beta_2=4\times25\)</span> 的逐坐标上界。</figcaption>
+</figure>
+
+<h4 id="4-6-6-稳定化三-quantile-balancing-qb">4.6.6 稳定化三：Quantile Balancing（QB）</h4>
+<h5 id="第一步-继承-auxiliary-loss-free-routing">第一步：继承 auxiliary-loss-free routing</h5>
+<p>DeepSeek-V3 的 auxiliary-loss-free 方法给每个 expert 一个 bias <span class="math-inline">\(b_j\)</span>，只用于 Top-k 排序：</p>
+<p><div class="math-block">\[s_i=\operatorname{Sigmoid}(W_rx_i),\]</div></p>
+<p><div class="math-block">\[T_i=\operatorname{argtopk}(s_i+b),
+\qquad
+p_{i,j}=\frac{s_{i,j}}{\sum_{r\in T_i}s_{i,r}}.\]</div></p>
+<p>关键是：</p>
+<ul>
+<li><span class="math-inline">\(b_j\)</span> 决定 expert 是否被选；</li>
+<li>真正 mixture weight 用原始 <span class="math-inline">\(s_{i,j}\)</span>，不含 <span class="math-inline">\(b_j\)</span>；</li>
+<li>因此 balancing bias 不直接向 LM loss 注入额外梯度。</li>
+</ul>
+<p>来源：<a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noreferrer">DeepSeek-V3 Technical Report</a>。</p>
+<p>原方法按 expert 过热/过冷做固定步长 sign update。步长 <span class="math-inline">\(\gamma\)</span> 太小收敛慢，太大则负载来回振荡；896 experts 时这个问题更严重。</p>
+<figure class="paper-figure">
+  <a href="https://github.com/MoonshotAI/Kimi-K3/blob/main/k3_tech_report.pdf#page=8" target="_blank" rel="noreferrer"><img src="../../../assets/k3/fig-5-quantile-balancing.png" alt="Kimi K3 原报告 Figure 5：Quantile Balancing 示意"></a>
+  <figcaption><strong>原报告 Figure 5（PDF 第 8 页）。</strong>左侧是普通 Top-k 造成的 4/3/1/0 负载，中间用每个 expert 的 margin 分位数确定新 bias，右侧变为 2/2/2/2。它直观展示了 QB 不是追加一个训练 loss，而是修改下一步路由时的 expert-specific threshold。</figcaption>
+</figure>
+
+<h5 id="第二步-qb-直接求-目标负载对应的分位数">第二步：QB 直接求“目标负载对应的分位数”</h5>
+<p>设一个 global batch 有 <span class="math-inline">\(m\)</span> tokens、<span class="math-inline">\(n\)</span> experts、每 token 选 <span class="math-inline">\(k\)</span> 个，则每个 expert 的理想负载为：</p>
+<p><div class="math-block">\[q=\frac{mk}{n}.\]</div></p>
+<p>对每个 token 先取 biased score <span class="math-inline">\(s_i+b^{(t)}\)</span> 的 Top-<span class="math-inline">\((k+1)\)</span>。第 <span class="math-inline">\(k+1\)</span> 名的分数 <span class="math-inline">\(\alpha_i^{(t)}\)</span> 是 expert 要挤进 Top-k 必须超过的 cutoff。</p>
+<p>对 expert <span class="math-inline">\(j\)</span>，考察所有 token 的 margin：</p>
+<p><div class="math-block">\[s_{i,j}-\alpha_i^{(t)}.\]</div></p>
+<p>选择这个 margin 的 <span class="math-inline">\(1-k/n\)</span> 分位数并取负，就能让恰好约 <span class="math-inline">\(q\)</span> 个 token 超过 cutoff：</p>
+<p><div class="math-block">\[\tilde b_j^{(t+1)}
+=
+-\operatorname{quantile}_{1-k/n}
+\left(s_{:,j}-\alpha^{(t)}\right).\]</div></p>
+<p>然后去掉所有 expert 共有的均值偏移：</p>
+<p><div class="math-block">\[b^{(t+1)}
+=
+\tilde b^{(t+1)}
+-\operatorname{mean}(\tilde b^{(t+1)})\mathbf 1.\]</div></p>
+<p>新 bias 下一 training step 才生效，避免当前 batch 用自己统计出的阈值路由，保证因果性。推理时直接冻结最终 bias，不做 quantile。</p>
+<h5 id="第三步-相对-sign-update-的优化特征">第三步：相对 sign update 的优化特征</h5>
+<p>附录把负载均衡写成一个二分图 balanced assignment：</p>
+<p><div class="math-block">\[\max_{x_{ij}\in\{0,1\}}
+\sum_{i,j}x_{ij}s_{ij},\]</div></p>
+<p>subject to：</p>
+<p><div class="math-block">\[\sum_jx_{ij}=k,\qquad
+\sum_ix_{ij}=\frac{mk}{n}.\]</div></p>
+<p>其 LP relaxation 因 bipartite b-matching polytope 的 integral property 而保持整数最优解。对偶问题分别对 token threshold <span class="math-inline">\(\alpha_i\)</span> 和 expert threshold <span class="math-inline">\(\beta_j\)</span> 做 coordinate minimization，两个子问题的闭式解都是 <span class="math-inline">\(1-k/n\)</span> quantile。</p>
+<p>因此：</p>
+<ul>
+<li>sign update 只使用“负载误差的方向”；</li>
+<li>QB 直接跳到当前 coordinate 的最优 threshold；</li>
+<li>不需要学习率式的 <span class="math-inline">\(\gamma\)</span>。</li>
+</ul>
+<p>报告引用与外部对照：</p>
+<ul>
+<li><a href="https://spaces.ac.cn/archives/11619" target="_blank" rel="noreferrer">苏剑林：MoE 环游记 6，最优分配促均衡</a>：K3 报告在 QB 段落中明确引用；</li>
+<li><a href="https://proceedings.mlr.press/v139/lewis21a.html" target="_blank" rel="noreferrer">BASE Layers</a> 与 <a href="https://arxiv.org/abs/2502.15451" target="_blank" rel="noreferrer">Binary-Integer-Programming Based Algorithm for Expert Load Balancing</a>：本文用于对照最优分配视角；K3 报告未将它们声明为 QB 的直接来源；</li>
+<li>K3 报告附录 C 对 QB 给出完整 LP dual 推导。</li>
+</ul>
+<h5 id="第四步-分布式全局-quantile-的实现">第四步：分布式全局 quantile 的实现</h5>
+<p>精确收集所有 <span class="math-inline">\(m\times n\)</span> margins 不现实。K3 为每层、每 expert 维护 histogram：</p>
+<ul>
+<li>每个 rank 在本地累计 bin counts；</li>
+<li>一次 integer all-reduce 合并全局 histogram；</li>
+<li>从 cumulative counts 中找到目标 quantile；</li>
+<li>每 expert 使用约 1000 bins。</li>
+</ul>
+<p>报告给出的性质：</p>
+<ul>
+<li>quantile 误差不超过 bin width；</li>
+<li>通信量与 token 数 <span class="math-inline">\(m\)</span> 无关，只取决于 experts 数和 bins 数；</li>
+<li>通信成本低于逐 micro-batch 交换 raw margins 的 1%；</li>
+<li>因 counts 可加，结果是真正 pooled global batch quantile，而不是不等价的“各 rank quantile 平均”。</li>
+</ul>
+<h3 id="4-7-native-vision-moonvit-v2">4.7 Native Vision：MoonViT-V2</h3>
+<h4 id="4-7-1-技术路线">4.7.1 技术路线</h4>
+<pre><code class="language-text">Kimi-VL 的 MoonViT
+  -&gt; Kimi K2.5 的 MoonViT-3D
+       图像/视频共享参数
+       spatial/temporal factorized attention
+       使用 SigLIP 初始化
+  -&gt; K3 MoonViT-V2
+       保留图像/视频共享与时空分解
+       改成从零开始 next-token prediction
+       与 LLM 从训练起点联合优化
+</code></pre>
+<p>来源：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2504.07491" target="_blank" rel="noreferrer">Kimi-VL Technical Report</a></li>
+<li><a href="https://arxiv.org/abs/2602.02276" target="_blank" rel="noreferrer">Kimi K2.5</a></li>
+</ul>
+<h4 id="4-7-2-架构">4.7.2 架构</h4>
+<ul>
+<li>27 层 Vision Transformer；</li>
+<li>约 401M 参数；</li>
+<li>hidden size 1024；</li>
+<li>12 attention heads；</li>
+<li>patch size 14；</li>
+<li>RMSNorm；</li>
+<li>linear 和 attention projections 均移除 bias；</li>
+<li>图像和视频完全共享 encoder 参数；</li>
+<li>spatial attention 和 temporal attention 分解执行；</li>
+<li>temporal pooling 压缩视频时间维 token；</li>
+<li>projector 前使用 2x2 pixel shuffle/downsampling，视觉 token 数缩小 4 倍；</li>
+<li>支持最高约 <span class="math-inline">\(3584\times3584\)</span> 的图像输入；</li>
+<li>轻量 MLP projector 把视觉表示映射到 7168 维 LLM embedding space。</li>
+</ul>
+<h4 id="4-7-3-从零训练与-siglip-初始化的取舍">4.7.3 从零训练与 SigLIP 初始化的取舍</h4>
+<p>K2.5 的 MoonViT-3D 依赖 contrastive pre-trained SigLIP 初始化。K3 的消融观察到：</p>
+<ul>
+<li>SigLIP 初始化版本在联合训练时 vision-tower gradient norm 更高且频繁尖峰；</li>
+<li>从零训练的 MoonViT-V2 梯度更平稳；</li>
+<li>最终视觉评测与 SigLIP 初始化 baseline 相当。</li>
+</ul>
+<p>作者的解释是，next-token objective 会直接把视觉特征塑造成有利于语言生成、OCR、结构理解和细粒度视觉线索的表示，而 contrastive objective 更偏向全局语义。</p>
+<p>这项证据支持“在 K3 的超大规模联合训练设置下无需 SigLIP 初始化”，但不能外推成“小规模 VLM 都不需要视觉预训练”。</p>
+<h4 id="4-7-4-原生多模态-的准确含义">4.7.4 “原生多模态”的准确含义</h4>
+<p>K3 不是先完成纯文本 LLM，再单独做 vision-language alignment，而是：</p>
+<ul>
+<li>从预训练开始就共同优化 vision encoder、projector 和 LLM；</li>
+<li>文本 token 和视觉 token 进入同一个 next-token prediction 目标；</li>
+<li>图像、视频、渲染结果、代码和工具 observation 可以处于同一上下文。</li>
+</ul>
+<p>它仍然有单独的视觉 encoder 和 projector，所以“原生”不等于“原始像素直接进入语言 Transformer”，而是“视觉路径从预训练一开始就是整体目标的一部分”。</p>
+<h3 id="4-8-per-head-muon">4.8 Per-Head Muon</h3>
+<h4 id="4-8-1-muon-路线">4.8.1 Muon 路线</h4>
+<p>Muon 对矩阵参数的 momentum 做 Newton-Schulz orthogonalization，使更新更接近矩阵空间中的正交化方向。</p>
+<p>路线：</p>
+<pre><code class="language-text">Muon
+  -&gt; Moonlight：证明 Muon 可扩展到 LLM，并加入 weight decay / update RMS scaling
+  -&gt; Kimi K2 MuonClip：用 QK-Clip 约束 attention logits 不稳定
+  -&gt; K3 Per-Head Muon：Q/K/V momentum 按 head 分块分别正交化
+</code></pre>
+<p>来源：</p>
+<ul>
+<li><a href="https://kellerjordan.github.io/posts/muon/" target="_blank" rel="noreferrer">Muon 原始说明</a></li>
+<li><a href="https://arxiv.org/abs/2502.16982" target="_blank" rel="noreferrer">Muon is Scalable for LLM Training / Moonlight</a></li>
+<li><a href="https://arxiv.org/abs/2507.20534" target="_blank" rel="noreferrer">Kimi K2 / MuonClip</a></li>
+</ul>
+<h4 id="4-8-2-per-head-参数化的设计动机">4.8.2 Per-head 参数化的设计动机</h4>
+<p>若把整个 Q/K/V projection matrix 当成一个大矩阵正交化：</p>
+<ul>
+<li>gradient/momentum 更大的 heads 会主导整个更新方向；</li>
+<li>小尺度 head 得不到充分归一化；</li>
+<li>不同 heads 的学习动态被不必要地耦合。</li>
+</ul>
+<p>K3 沿 head 维切分 momentum matrix，每个 head block 独立做 Newton-Schulz：</p>
+<ul>
+<li>各 head 更新尺度更均衡；</li>
+<li>大模型训练更稳定；</li>
+<li>tall per-head block 的迭代比完整大矩阵略便宜。</li>
+</ul>
+<p>报告没有给出 Per-Head Muon 的独立 loss/benchmark 消融数值，因此其收益目前是定性陈述。</p>
+<h3 id="4-9-mtp-与-eagle-3-draft">4.9 MTP 与 EAGLE-3 draft</h3>
+<p>预训练表格显示 K3 使用一层 MTP（Multi-Token Prediction）。MTP 路线在 DeepSeek-V3 中被用于增强预训练目标；后续 MiMo-V2-Flash 展示了把 MTP 层改造成 speculative decoding draft 的路线。</p>
+<p>K3 后训练时把这一层改造成 EAGLE-3 风格 draft：</p>
+<ul>
+<li>target model 冻结；</li>
+<li>只训练 draft layer 和 feature-fusion projection；</li>
+<li>取第 1、第 4 和最后一个 AttnRes block 的低/中/高层特征；</li>
+<li>拼接后通过 <span class="math-inline">\(W_{E3}\)</span> 投到 hidden size；</li>
+<li><span class="math-inline">\(W_{E3}\)</span> 初始化为 <span class="math-inline">\([0,0,I]\)</span>，开始时等价于只用 MTP 原来熟悉的高层特征；</li>
+<li>训练时 unroll 7 步，让后续 draft step 使用自己的先前输出，贴近推理递归过程；</li>
+<li>使用 LK loss 直接最大化 lossless speculative sampling acceptance rate：</li>
+</ul>
+<p><div class="math-block">\[\mathcal{L}_{LK}
+=
+-\log\sum_{x\in V}\min(p(x),q(x)).\]</div></p>
+<p>来源：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noreferrer">DeepSeek-V3 的 MTP</a></li>
+<li><a href="https://arxiv.org/abs/2503.01840" target="_blank" rel="noreferrer">EAGLE-3</a></li>
+<li><a href="https://arxiv.org/abs/2602.23881" target="_blank" rel="noreferrer">LK Losses</a></li>
+<li><a href="https://arxiv.org/abs/2601.02780" target="_blank" rel="noreferrer">MiMo-V2-Flash 的 MTP draft / MOPD</a></li>
+</ul>
+<p>报告的训练架构表记录了一层 MTP，而当前公开 target checkpoint 的 <code>config.json</code> 则记录 <code>num_nextn_predict_layers = 0</code>，两者对应不同发布阶段。一种可能解释是：MTP 已被转换为独立 draft 角色，发布的 target backbone 因而不再附带 next-n layer。公开材料尚不足以验证这一解释，也不足以依据 target config 否定预训练阶段使用 MTP。</p>
+<hr>
+<h2 id="5-预训练">5. 预训练</h2>
+<h3 id="5-1-数据">5.1 数据</h3>
+<p>文本数据覆盖：</p>
+<ul>
+<li>Web Text</li>
+<li>Code</li>
+<li>Mathematics</li>
+<li>Knowledge</li>
+</ul>
+<p>视觉数据覆盖：</p>
+<ul>
+<li>caption</li>
+<li>interleaved image-text documents</li>
+<li>OCR</li>
+<li>perception</li>
+<li>video</li>
+<li>visual coding</li>
+<li>SVG、3D asset、网页、游戏、CAD 等“代码 + 渲染结果”数据</li>
+</ul>
+<p>处理方法：</p>
+<ul>
+<li>rule-based filtering；</li>
+<li>classifier quality scoring；</li>
+<li>deduplication；</li>
+<li>根据小模型消融确定各 domain sampling rate；</li>
+<li>对 knowledge/math 使用 K2 的 rephrasing pipeline：多风格 prompt、chunkwise autoregressive generation、与源文档做 fidelity verification；</li>
+<li>坐标监督同时使用绝对坐标和 <span class="math-inline">\([0,1]\)</span> 归一化坐标。</li>
+</ul>
+<h4 id="披露缺口">披露缺口</h4>
+<p>报告<strong>没有公开</strong>：</p>
+<ul>
+<li>K3 总预训练 tokens；</li>
+<li>各 domain token 比例；</li>
+<li>合成数据占比；</li>
+<li>vision token 总量；</li>
+<li>数据 cutoff；</li>
+<li>训练 epochs。</li>
+</ul>
+<p>因此不能像 K2 的“15.5T tokens”那样估算 K3 的训练量。K3 参数规模更大不等于数据量一定更大，报告对此没有数字证据。</p>
+<h3 id="5-2-scaling-law">5.2 Scaling law</h3>
+<p>K3 重新搜索：</p>
+<ul>
+<li>batch size</li>
+<li>peak learning rate</li>
+<li>tokens-per-parameter ratio</li>
+<li>model shape</li>
+<li>learning-rate schedule</li>
+</ul>
+<p>作者在 held-out OOD validation data 上拟合 K2/K3 scaling curve，声称 K3 在相同 validation loss 下节省约 2.5 倍 FLOPs。</p>
+<figure class="paper-figure compact">
+  <a href="https://github.com/MoonshotAI/Kimi-K3/blob/main/k3_tech_report.pdf#page=11" target="_blank" rel="noreferrer"><img src="../../../assets/k3/fig-7-scaling-law.png" alt="Kimi K3 原报告 Figure 7：K2 与 K3 scaling-law 拟合"></a>
+  <figcaption><strong>原报告 Figure 7（PDF 第 11 页）。</strong>横向的 2.5× 箭头表示在相同拟合 validation loss 下的 FLOPs 比例；它不是 wall-clock 加速，也不能分解到某个单独组件。</figcaption>
+</figure>
+
+<p>他们还独立为 cosine 和 WSD 搜索各自最优 batch size 与 peak LR，发现 cosine 最终 loss 更低。因此 K3 选择：</p>
+<ul>
+<li>cosine decay；</li>
+<li>1% linear warmup；</li>
+<li>weight decay = 0.1。</li>
+</ul>
+<p>这个比较方法是合理的，因为不同 schedule 共享同一组超参会偏向恰好匹配该组超参的一方。</p>
+<h4 id="证据边界">证据边界</h4>
+<p>图 7 没有公开 y 轴具体 loss 数值、拟合参数、置信区间或各组件消融。因此可以接受的结论是：</p>
+<blockquote>
+<p>整套 K3 architecture + data + recipe 在内部 OOD loss scaling 拟合中相对 K2 有约 2.5 倍 compute efficiency。</p>
+</blockquote>
+<p>不可以推出：</p>
+<ul>
+<li>KDA 单独带来 2.5 倍；</li>
+<li>K3 训练 wall-clock 快 2.5 倍；</li>
+<li>K3 每 token 推理成本比 K2 低 2.5 倍；</li>
+<li>2.78T K3 只需 K2 的 40% 总训练资金。</li>
+</ul>
+<h3 id="5-3-长上下文扩展">5.3 长上下文扩展</h3>
+<p>四阶段 curriculum：</p>
+<pre><code class="language-text">8K
+  -&gt; 64K（预训练后段）
+  -&gt; 256K（cooldown）
+  -&gt; 1M（cooldown）
+</code></pre>
+<p>只在总预算的小部分使用昂贵的超长序列。</p>
+<p>长上下文数据处理：</p>
+<ul>
+<li>exact/fuzzy dedup；</li>
+<li>视频 frame perceptual hash；</li>
+<li>删除 binary blobs、截断文件、无效机器日志、重复视频；</li>
+<li>对稀缺的长文档和长视频 upsample；</li>
+<li>合成 permutation/concatenation 任务，把关键证据散布到完整 1M context，使任务不能只靠局部窗口解决。</li>
+</ul>
+<p>NoPE 让扩窗不需要改 RoPE。真正使 1M 训练可行的系统组件则是 KDA Context Parallelism。</p>
+<hr>
+<h2 id="6-后训练">6. 后训练</h2>
+<h3 id="6-1-三阶段总流程">6.1 三阶段总流程</h3>
+<p><figure class="diagram-card">
+        <figcaption>技术关系图</figcaption>
+        <pre class="mermaid">flowchart LR
+    SFT[&quot;SFT\n建立 agent/tool-use 冷启动&quot;] --&gt; RL[&quot;9 个 RL experts\n3 domains x 3 effort&quot;]
+    RL --&gt; MOPD[&quot;Multi-Teacher On-Policy Distillation&quot;]
+    MOPD --&gt; U[&quot;统一 Kimi K3\nlow / high / max&quot;]</pre>
+      </figure></p>
+<h4 id="6-1-1-sft">6.1.1 SFT</h4>
+<ul>
+<li>使用 Kimi 系列此前 domain-specialized models 合成长 agent trajectories；</li>
+<li>多阶段 verification；</li>
+<li>human-in-the-loop annotation；</li>
+<li>统一序列化为 XTML chat template；</li>
+<li>从 SFT 阶段开始做 MXFP4/MXFP8 QAT。</li>
+</ul>
+<p>报告没有公开 SFT 样本数、token 数、steps、batch size、learning rate 或硬件规模。</p>
+<h4 id="6-1-2-rl">6.1.2 RL</h4>
+<p>三类 domain：</p>
+<ol>
+<li><strong>General</strong>：通用经验、视觉、推理、faithfulness、search、knowledge work。</li>
+<li><strong>General agents</strong>：长时 assistant、deep research、paragraph-level writing。</li>
+<li><strong>Coding agents</strong>：SWE、coding experience、kernel、web development。</li>
+</ol>
+<p>每类训练 low/high/max 三种 effort，共九个 teacher/expert policies。</p>
+<h5 id="partial-rollout">Partial rollout</h5>
+<p>每轮对 <span class="math-inline">\(N\)</span> 个 prompts 各采样 <span class="math-inline">\(K\)</span> 个 completions，共 <span class="math-inline">\(NK\)</span> trajectories。不是等待全部结束，而是在 <span class="math-inline">\(\lambda NK\)</span> 条完成时暂停 rollout：</p>
+<ul>
+<li>已完成的送去 policy optimization；</li>
+<li>未完成的保存队列和 sandbox 状态；</li>
+<li>下一 iteration 优先恢复。</li>
+</ul>
+<p>它沿用 Kimi K1.5/K2.5 的 partial rollout 思路，以减少长时任务的 straggler tail。长 trajectory 跨 iteration 会产生 stale/off-policy data，K3 使用 per-token regularization 限制 policy update 的局部变化。</p>
+<p>来源：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2501.12599" target="_blank" rel="noreferrer">Kimi K1.5</a></li>
+<li><a href="https://arxiv.org/abs/2602.02276" target="_blank" rel="noreferrer">Kimi K2.5</a></li>
+</ul>
+<h5 id="effort-control">Effort control</h5>
+<p>为每个问题估计 cold-start budget <span class="math-inline">\(b_0(x)\)</span>。若 trajectory token 数 <span class="math-inline">\(T(y)\)</span> 超过 <span class="math-inline">\(\tau b_0(x)\)</span>，reward 直接改为 -1：</p>
+<ul>
+<li>general reasoning：<span class="math-inline">\(T(y)\)</span> 是 thinking tokens；</li>
+<li>agentic task：<span class="math-inline">\(T(y)\)</span> 包括 reasoning、tool-call arguments 等累计输出。</li>
+</ul>
+<p>先用较大 <span class="math-inline">\(\tau\)</span> 训练 max，再逐步降低得到 high 和 low。它学习的是“在预算约束下解决任务”，不是推理时简单硬截断同一个 policy。</p>
+<h5 id="agentic-grm">Agentic GRM</h5>
+<p>非可验证任务使用 tournament/group comparison：</p>
+<ol>
+<li>读取实际结果或 deliverable；</li>
+<li>生成 rubric；</li>
+<li>按 rubric 评分；</li>
+<li>把各项分数写入 scorepad。</li>
+</ol>
+<p>同时用类似 effort budget 的长度惩罚防止模型通过冗长输出 reward hacking。</p>
+<h4 id="6-1-3-mopd">6.1.3 MOPD</h4>
+<p>九个专家最终不是 ensemble serving，而是用 Multi-Teacher On-Policy Distillation 合并进一个模型。</p>
+<p>对 domain <span class="math-inline">\(d\)</span>、effort <span class="math-inline">\(e\)</span>，student 自己生成 token <span class="math-inline">\(y_t\)</span>，相应 teacher 给逐 token dense reward：</p>
+<p><div class="math-block">\[r_{\mathrm{opd}}^d(y_t)
+=
+\operatorname{clip}\left(
+\operatorname{sg}
+\log\frac{
+\pi_{\mathrm{teacher}}^{(d,e)}(y_t\mid x,y_{&lt;t})
+}{
+\pi_\theta(y_t\mid e,x,y_{&lt;t})
+},
+-R_{\max},R_{\max}
+\right).\]</div></p>
+<p>它同时拥有：</p>
+<ul>
+<li>on-policy：状态来自 student 自己会访问的轨迹；</li>
+<li>dense supervision：每个 token 都有 teacher 信号，不只有 trajectory 末端 reward；</li>
+<li>multi-teacher：按 domain 和 effort 选择 teacher。</li>
+</ul>
+<p>报告采用的方法与其公开背景：</p>
+<ul>
+<li><a href="https://thinkingmachines.ai/blog/on-policy-distillation/" target="_blank" rel="noreferrer">On-Policy Distillation</a>；</li>
+<li><a href="https://arxiv.org/abs/2601.02780" target="_blank" rel="noreferrer">MiMo-V2-Flash 的 MOPD</a>；</li>
+<li>K3 把它用于三领域乘三 effort 的统一模型。</li>
+</ul>
+<p>报告称尝试过 top-k logits distillation，但没有观察到明显收敛或最终性能优势。</p>
+<h3 id="6-2-rl-环境和任务合成">6.2 RL 环境和任务合成</h3>
+<h4 id="unified-white-box-environment">Unified white-box environment</h4>
+<p>把 agent harness 拆为可组合模块：</p>
+<ul>
+<li>tools</li>
+<li>system prompt</li>
+<li>context management</li>
+<li>skills</li>
+<li>memories</li>
+<li>subagents</li>
+<li>interaction protocol</li>
+</ul>
+<p>通过动态组合模拟 Kimi Code、Claude Code、Codex、OpenClaw、Hermes 等 harness，降低模型对单一工具 schema 的过拟合。</p>
+<h4 id="knowledge-graph-guided-synthesis">Knowledge-graph-guided synthesis</h4>
+<ul>
+<li>从粗粒度 seed nodes 开始；</li>
+<li>agent 搜索 web 并递归扩展为 DAG；</li>
+<li>新概念先查重和连接已有节点；</li>
+<li>从不同深度采样一个或多个相关概念；</li>
+<li>检索公开材料；</li>
+<li>再按 coding、knowledge、vision 等任务类型合成题目。</li>
+</ul>
+<h4 id="重点环境">重点环境</h4>
+<ul>
+<li>多步可验证搜索和专业知识工作；</li>
+<li>Python-in-the-loop 视觉推理；</li>
+<li>CUDA/Triton/CuTe/Gluon/ThunderKittens/TileLang kernel 优化；</li>
+<li>Gmail/Notion/Slack/Canvas mock apps；</li>
+<li>跨多模拟日、数千 tool calls、数百万累计 context tokens 的 personal assistant；</li>
+<li>Autonomous Execution Tasks：只给目标、约束、工具和 verifier，不给参考轨迹；</li>
+<li>web development：网站、游戏、3D/WebGL、数据可视化、SVG、full-stack。</li>
+</ul>
+<p>这些环境共同训练“reason -&gt; act -&gt; observe -&gt; verify -&gt; adapt”的闭环，而不是只训练一次性问答。</p>
+<h3 id="6-3-部署感知后训练">6.3 部署感知后训练</h3>
+<h4 id="mxfp4-qat">MXFP4 QAT</h4>
+<ul>
+<li>routed MoE expert weights：MXFP4；</li>
+<li>routed expert input activations：MXFP8；</li>
+<li>attention projections、latent projections、shared experts、router 等保持更高精度；</li>
+<li>SFT 和 RL 全程 QAT；</li>
+<li>rollout 和训练使用相同量化 scheme，避免 train-inference mismatch。</li>
+</ul>
+<p>MX 格式以 block shared scale 配合低 bit 元素表示，在压缩和动态范围之间折中。</p>
+<p>来源：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2310.10537" target="_blank" rel="noreferrer">Microscaling Data Formats for Deep Learning</a></li>
+<li><a href="https://arxiv.org/abs/1712.05877" target="_blank" rel="noreferrer">Quantization and Training of Neural Networks</a></li>
+</ul>
+<p>官方发布 config 显示 MXFP4 weight group size 为 32，并明确忽略 attention、shared experts、LM head、vision tower、projector 等模块。</p>
+<hr>
+<h2 id="7-基础设施">7. 基础设施</h2>
+<h3 id="7-1-kda-的算法-系统协同">7.1 KDA 的算法-系统协同</h3>
+<h4 id="flashkda">FlashKDA</h4>
+<p>KDA 的 chunk 内并行和 chunk 间 state 传递交替发生，朴素实现会让 GPU 在 state propagation 阶段空闲。FlashKDA：</p>
+<ul>
+<li>基于 CUTLASS；</li>
+<li>将 token-parallel stage 与 head-parallel recurrence 分开调度；</li>
+<li>overlap chunk 内计算和跨 chunk state propagation；</li>
+<li>同时服务 training 和 prefill；</li>
+<li>作为 FLA <code>chunk_kda</code> 的自动 backend。</li>
+</ul>
+<p>来源：</p>
+<ul>
+<li><a href="https://github.com/MoonshotAI/FlashKDA" target="_blank" rel="noreferrer">FlashKDA 官方仓库</a></li>
+<li><a href="https://github.com/MoonshotAI/FlashKDA/blob/master/docs/20260420-flashkda-v1-deep-dive.md" target="_blank" rel="noreferrer">FlashKDA v1 deep dive</a></li>
+<li><a href="https://github.com/fla-org/flash-linear-attention" target="_blank" rel="noreferrer">Flash Linear Attention</a></li>
+</ul>
+<h4 id="设备内-cp">设备内 CP</h4>
+<p>纯 TP 只切 heads，不会缩短 recurrence；每 rank 只剩少量 heads 时，长 prefill 会缺少并行度。K3 在单 GPU 的 SM 之间按 sequence segment 切分，独立算各段 transition，再精确合并各段初始 state。此过程不产生跨设备通信。</p>
+<h4 id="跨设备-kda-context-parallelism-kcp">跨设备 KDA Context Parallelism（KCP）</h4>
+<p>普通 linear attention 的 state update 是加性的，各 rank 从零算 local state 后对前缀求和即可。KDA 不行，因为：</p>
+<p><div class="math-block">\[S_t=M_tS_{t-1}+b_t,
+\qquad
+M_t=I-\beta_tk_tk_t^\top\operatorname{Diag}(\alpha_t).\]</div></p>
+<p>一段 token 对输入 state 的作用不是单纯加一个 local state，而是 affine transform：</p>
+<p><div class="math-block">\[S_{\mathrm{out}}=M_{\mathrm{segment}}S_{\mathrm{in}}+\tilde S_{\mathrm{segment}}.\]</div></p>
+<p>KCP 让每个 rank 本地计算：</p>
+<ul>
+<li>cumulative transition <span class="math-inline">\(M_{\mathrm{segment}}\)</span>；</li>
+<li>从 <span class="math-inline">\(S=0\)</span> 开始得到的 local write <span class="math-inline">\(\tilde S_{\mathrm{segment}}\)</span>。</li>
+</ul>
+<p>这些 pair 可以结合律地 composition，通过 prefix scan 恢复每个 rank 的正确 incoming state。通信只需一次 fixed-size all-gather，而不是交换随序列长度增长的 KV blocks。</p>
+<p>相关 sequence-parallel 工作与 K3 的区别：</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2310.01889" target="_blank" rel="noreferrer">Ring Attention</a>：full attention 的长序列 CP；</li>
+<li><a href="https://arxiv.org/abs/2404.02882" target="_blank" rel="noreferrer">LASP</a> 与 <a href="https://arxiv.org/abs/2502.07563" target="_blank" rel="noreferrer">LASP-2</a>：linear attention sequence parallelism；</li>
+<li>DeltaNet context parallelism；</li>
+<li>K3/KCP：把加性 prefix sum 推广到 affine transition pair。</li>
+</ul>
+<p>这些工作用于定位 KCP 所处的问题空间；除报告明确引用的部分外，本文不把它们画成 KCP 的确定实现来源。</p>
+<h3 id="7-2-3t-预训练">7.2 3T 预训练</h3>
+<p>并行组合：</p>
+<ul>
+<li>Pipeline Parallelism（PP）+ virtual stages；</li>
+<li>Expert Parallelism（EP）；</li>
+<li>ZeRO-1 Data Parallelism；</li>
+<li>Pipeline ZeRO-2 gradient sharding；</li>
+<li>Context Parallelism。</li>
+</ul>
+<p>报告没有公开各维并行度、GPU 总数、GPU 型号、MFU、tokens/s 或 step time。</p>
+<h4 id="moonep-perfectly-balanced-ep">MoonEP：perfectly balanced EP</h4>
+<p>普通 EP 的问题：</p>
+<ul>
+<li>每 rank token load 不同，最热 rank 决定 step time；</li>
+<li>per-expert shape 每层、每步变化；</li>
+<li>动态 shape 导致 memory fragmentation；</li>
+<li>host 要同步 device 才知道实际 expert GEMM shape。</li>
+</ul>
+<p>MoonEP 使用 dynamic redundant experts：</p>
+<ol>
+<li>根据当前 micro-batch、当前层 router 输出在线规划冗余 expert；</li>
+<li>forward expert compute 前预取其权重；</li>
+<li>backward 把冗余 expert 梯度 reduce 回 home rank；</li>
+<li>保证每 rank 恰好接收 <span class="math-inline">\(S\times K\)</span> tokens。</li>
+</ol>
+<p>论文证明每 rank 预留至多 <span class="math-inline">\(E/R\)</span> 个 redundant expert slots 即可保证任意 router 输出下都有可行解，而且该 upper bound 基本 tight。</p>
+<p>由 perfect balance 带来的系统收益：</p>
+<ul>
+<li>所有 rank 计算量相同；</li>
+<li>shape 静态，无需每层 host sync；</li>
+<li>fused permute/unpermute 直接把 token 写入远端最终 expert-grouped 位置；</li>
+<li>communication buffer 固定为 <span class="math-inline">\(S\times K\)</span>，而不是最坏情况下的 <span class="math-inline">\(S\times K\times R\)</span>；</li>
+<li>shared expert 另开 stream 与 routed path overlap。</li>
+</ul>
+<p>来源：</p>
+<ul>
+<li><a href="https://github.com/MoonshotAI/MoonEP" target="_blank" rel="noreferrer">MoonEP 官方仓库</a></li>
+<li>对比基线 <a href="https://github.com/deepseek-ai/DeepEP" target="_blank" rel="noreferrer">DeepEP</a></li>
+<li>相关实时负载均衡 <a href="https://arxiv.org/abs/2606.04101" target="_blank" rel="noreferrer">UltraEP</a></li>
+</ul>
+<h4 id="统一-activation-manager">统一 activation manager</h4>
+<p>每个 backward-saved tensor 都可选择：</p>
+<ul>
+<li>recomputation；</li>
+<li>blockwise FP8 quantization；</li>
+<li>CPU offload；</li>
+<li>remote GPU offload；</li>
+<li>以上策略按 tensor 粒度组合。</li>
+</ul>
+<p>所有 GPU memory 由主 compute stream 的单一 pool 管理，activation 按 layer prefetch，并与计算 overlap。</p>
+<h4 id="moe-memory">MoE memory</h4>
+<ul>
+<li>重写 router probability gradient，使 backward 不再依赖完整 forward output；</li>
+<li>forward 只保存 dispatch 输入；</li>
+<li>backward 重新 dispatch 以恢复 group GEMM 输入；</li>
+<li>recompute communication 与 group-GEMM backward overlap。</li>
+</ul>
+<h4 id="attnres-memory">AttnRes memory</h4>
+<ul>
+<li>block representation 在边界只生成一次；</li>
+<li>后续层共享；</li>
+<li>AttnRes 内部完整 checkpoint；</li>
+<li>pipeline stage 之间只增量传新 block；</li>
+<li>micro-batch 完成即释放。</li>
+</ul>
+<h4 id="跨-pp-rank-remote-activation-offload">跨 PP rank remote activation offload</h4>
+<p>interleaved 1F1B 下，前部 PP rank 常保留更多 activation。K3 使用 Mooncake Transfer Engine 把 activation remote-offload 到较空闲的 PP ranks，实现显存均衡。</p>
+<p>来源：<a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noreferrer">Mooncake</a>。</p>
+<h4 id="pipeline-zero-2-和-muon">Pipeline ZeRO-2 和 Muon</h4>
+<ul>
+<li>gradients 在 DP ranks 间 sharding；</li>
+<li>sharded gradients offload 到 CPU；</li>
+<li>GPU 只保留 double grad buffer；</li>
+<li>Muon 不在每 rank all-gather 全参数，而是每个 rank 通过 P2P 只取自己负责参数的 shards；</li>
+<li>chunk 级通信和 Newton-Schulz 计算流水化。</li>
+</ul>
+<h4 id="视觉-encoder">视觉 encoder</h4>
+<ul>
+<li>大图/长视频 patch 按 CP ranks 切分；</li>
+<li>gather-KV 完成视觉 attention；</li>
+<li>CP group 再分 subgroups，让多张大图并行且负载平衡；</li>
+<li>ViT 的大部分 forward/backward 被塞进 interleaved 1F1B 的 pipeline bubbles；</li>
+<li>早期必须先完成的 ViT micro-batches 同步跑，其余进入 bubbles。</li>
+</ul>
+<h3 id="7-3-1m-agentic-rl-基础设施">7.3 1M agentic RL 基础设施</h3>
+<p>论文称单个 1M-context K3 RL experiment 控制在“几百张 GPUs”，但没有给精确数量。</p>
+<h4 id="co-located-rl">Co-located RL</h4>
+<p>训练和 rollout 共用 GPU 集群，减少独立 rollout fleet 的资源浪费，但会产生 GPU memory 的时分竞争。</p>
+<h4 id="external-kv-cache-pool">External KV cache pool</h4>
+<ul>
+<li>active decode blocks 留在 GPU；</li>
+<li>GPU eviction 时才把可复用 idle prefix 写回 CPU DRAM，即 write-back；</li>
+<li>下次使用前 prefetch 回 GPU；</li>
+<li>KDA states 与对应 MLA KV blocks 一起迁移；</li>
+<li>rollout 期间为 external cache 腾 CPU DRAM，训练 weights/optimizer states 暂时 offload 到 NVMe；</li>
+<li>rollout 结束释放 pool，再恢复训练状态。</li>
+</ul>
+<h4 id="auto-throttling">Auto-throttling</h4>
+<p>根据：</p>
+<ul>
+<li>active request count；</li>
+<li>queued request count；</li>
+<li>KV utilization；</li>
+</ul>
+<p>动态控制进入 inference engine 的 request 数。早期 context 短时提高并发，后期 KV 压力升高时降低并发。</p>
+<h4 id="gradient-buffer-reuse">Gradient-buffer reuse</h4>
+<p>RL 中 reference model 只 forward，但权重太大无法常驻 GPU。K3 把 policy model 暂时不用的 FP32 gradient buffer 当作 reference weight staging slots：</p>
+<ul>
+<li>一个 slot 执行当前 chunk；</li>
+<li>一个 slot prefetch 下一个 chunk；</li>
+<li>真正反向传播前这些 buffer 再被 policy gradients 覆盖。</li>
+</ul>
+<h4 id="agentenv">AgentENV</h4>
+<p>AgentENV 基于 Firecracker microVM，而不是只依赖普通 container：</p>
+<ul>
+<li>incremental checkpoint：最低 133 ms；</li>
+<li>resume：最低 49 ms；</li>
+<li>pause 后不占 CPU/memory；</li>
+<li>fork 可复制完全相同环境给 reward judging；</li>
+<li>snapshot 用于失败恢复；</li>
+<li>OverlayBD + custom ublk + P2P transport；</li>
+<li>copy-on-write 和 page cache 优化；</li>
+<li>实际 workload memory overcommit 最高 6.5 倍。</li>
+</ul>
+<p>报告称 K3 训练和评测累计创建：</p>
+<ul>
+<li>51,219,741 个 sandboxes；</li>
+<li>1,505,678 个 images。</li>
+</ul>
+<p>来源：</p>
+<ul>
+<li><a href="https://github.com/kvcache-ai/AgentENV" target="_blank" rel="noreferrer">AgentENV 官方仓库</a></li>
+<li><a href="https://www.usenix.org/conference/nsdi20/presentation/agache" target="_blank" rel="noreferrer">Firecracker NSDI 2020</a></li>
+</ul>
+<h3 id="7-4-推理和在线服务">7.4 推理和在线服务</h3>
+<h4 id="混合-kda-mla-cache">混合 KDA-MLA cache</h4>
+<p>两类 cache：</p>
+<ul>
+<li>MLA KV：随 token 数增长，按 token/page 管理；</li>
+<li>KDA state：每 request 固定大小，但 checkpoint 较大且只需在少量 prefix boundaries 保存。</li>
+</ul>
+<p>K3 把两者放进统一 paged block pool，复用 allocation、reference counting、eviction 和 transfer。</p>
+<h4 id="细粒度-prefix-hit">细粒度 prefix hit</h4>
+<p>若把 physical block、hash block 和 KDA checkpoint boundary 绑在一起，KDA state 太大，会迫使 block 达到 1024-6144 tokens，短请求很难命中。</p>
+<p>K3 解耦：</p>
+<ul>
+<li>physical cache block 可为 6144 tokens；</li>
+<li>prefix hash block 可为 512 tokens；</li>
+<li>KDA checkpoints 只在部分 512-token hash endpoints 保存，尤其保留 conversation-turn boundaries；</li>
+<li>lookup 先找 MLA 最长匹配，再要求所有 KDA cache groups 在同一 boundary 都有 checkpoint；</li>
+<li>命中后 KDA state copy 到 request 私有 running state，cached snapshot 永不原地修改。</li>
+</ul>
+<figure class="paper-figure">
+  <a href="https://github.com/MoonshotAI/Kimi-K3/blob/main/k3_tech_report.pdf#page=23" target="_blank" rel="noreferrer"><img src="../../../assets/k3/fig-12-prefix-cache.png" alt="Kimi K3 原报告 Figure 12：KDA-aware 细粒度 prefix cache"></a>
+  <figcaption><strong>原报告 Figure 12（PDF 第 23 页）。</strong>物理页仍以 6144-token 粗粒度分配，但其内部划分为 512-token hash blocks；命中 <span class="math-inline">\(B=2560\)</span> 后，同时恢复 KDA checkpoint，并对未满的 MLA page 做 copy-on-write，从而无需重算 <span class="math-inline">\([0,B)\)</span>。</figcaption>
+</figure>
+
+<h4 id="speculative-decoding-下的-kda-state-replay">speculative decoding 下的 KDA state replay</h4>
+<p>问题：draft tokens 验证失败时，KDA state 已经原地推进，直接回滚需要为每个 draft position 保存一份大 state。</p>
+<p>K3 不缓存每步 state，而缓存较小的 projected inputs：</p>
+<ul>
+<li>验证后只重放 accepted prefix；</li>
+<li>在 on-chip recurrence 中重建 state；</li>
+<li>只写回 verified 和 bonus token 的最终 state；</li>
+<li>short conv、norm、gating、KDA recurrence、output norm 融成一个 kernel。</li>
+</ul>
+<p>K3 报告把 <a href="https://tridao.me/blog/2026/replayssm/" target="_blank" rel="noreferrer">ReplaySSM</a> 列为同期相关工作。两者都使用 replay 避免保存每个 draft position 的完整 recurrent state，但公开文本没有声明直接派生关系。</p>
+<h4 id="block-attnres-kernel">Block AttnRes kernel</h4>
+<ul>
+<li>prefill：把 TP all-reduce 拆成 reduce-scatter + all-gather，在中间对 sequence-sharded hidden state 做 intra-block kernel，避免每 TP rank 复制 block representations；</li>
+<li>decode：inter-block pass 放 side stream；</li>
+<li>intra-block merge、partial-sum update、RMSNorm 融进前一个 TP all-reduce。</li>
+</ul>
+<h4 id="stable-latentmoe-kernel">Stable LatentMoE kernel</h4>
+<ul>
+<li>latent down-projection 与 router 融合成一个 GEMM；</li>
+<li>latent weights 跨 rank shard；</li>
+<li>output all-gather 融入 GEMM epilogue；</li>
+<li>与 shared expert compute overlap；</li>
+<li>小 batch decode 时采用 WarpDecode 风格 token-centric kernel；</li>
+<li>每 warp 负责 output neuron，再把 lanes 分为 expert teams；</li>
+<li>权重预先离线重排，减少 runtime dequantization。</li>
+</ul>
+<h4 id="fleet-scheduler">Fleet scheduler</h4>
+<ul>
+<li>cache-aware affinity：session 优先路由到已有 prefix cache 的 cluster；</li>
+<li>consistent hashing 给每 session 指定 primary + secondary；</li>
+<li>secondary 平时不复制 cache，故障时重新 prefill，但 failover 工作被均匀分散；</li>
+<li>budget-based admission：短请求和 1M 请求使用不同资源预算，避免长请求突发拖垮全局 TTFT。</li>
+</ul>
+<p>官方模型页当前推荐：</p>
+<ul>
+<li><a href="https://github.com/vllm-project/vllm" target="_blank" rel="noreferrer">vLLM</a></li>
+<li><a href="https://github.com/sgl-project/sglang" target="_blank" rel="noreferrer">SGLang</a></li>
+<li>TokenSpeed</li>
+</ul>
+<p>这说明 K3 并不是“只训练、不做部署”；相反，报告第 5.4 节给出了比较完整的 cache、kernel 和 fleet scheduling 方案。</p>
+<hr>
+<h2 id="8-评测结果">8. 评测结果</h2>
+<h3 id="8-1-代表性公开结果">8.1 代表性公开结果</h3>
+<p>所有 K3 主结果使用：</p>
+<ul>
+<li>reasoning effort = max；</li>
+<li>temperature = 1.0；</li>
+<li>单步 reasoning/knowledge：top-p = 0.95；</li>
+<li>coding/agentic：top-p = 1.0。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>Benchmark</th>
+<th align="right">K3</th>
+<th>报告中的位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Reasoning</td>
+<td>GPQA Diamond</td>
+<td align="right">93.5</td>
+<td>接近 GPT-5.6 Sol 94.1</td>
+</tr>
+<tr>
+<td>Research reasoning</td>
+<td>CritPt</td>
+<td align="right">23.4</td>
+<td>明显落后最强模型</td>
+</tr>
+<tr>
+<td>Long reasoning</td>
+<td>AA-LCR</td>
+<td align="right">74.7</td>
+<td>表中最高</td>
+</tr>
+<tr>
+<td>HLE</td>
+<td>无工具 / 有工具</td>
+<td align="right">43.5 / 56.0</td>
+<td>落后 Claude Fable 5</td>
+</tr>
+<tr>
+<td>Coding</td>
+<td>DeepSWE</td>
+<td align="right">67.5</td>
+<td>落后 Fable 5、GPT-5.6 Sol</td>
+</tr>
+<tr>
+<td>Coding</td>
+<td>ProgramBench</td>
+<td align="right">77.8</td>
+<td>表中最高</td>
+</tr>
+<tr>
+<td>Coding</td>
+<td>Terminal-Bench 2.1</td>
+<td align="right">88.3</td>
+<td>接近 GPT-5.6 Sol 88.8</td>
+</tr>
+<tr>
+<td>Coding</td>
+<td>FrontierSWE</td>
+<td align="right">81.2</td>
+<td>第二</td>
+</tr>
+<tr>
+<td>Coding</td>
+<td>SWE-Marathon</td>
+<td align="right">42.0</td>
+<td>表中最高</td>
+</tr>
+<tr>
+<td>Agentic search</td>
+<td>BrowseComp</td>
+<td align="right">91.2</td>
+<td>表中最高</td>
+</tr>
+<tr>
+<td>General agents</td>
+<td>AutomationBench</td>
+<td align="right">30.8</td>
+<td>表中最高</td>
+</tr>
+<tr>
+<td>Knowledge work</td>
+<td>GDPval-AA v2</td>
+<td align="right">1686 Elo</td>
+<td>落后 Fable 5 和 GPT-5.6 Sol</td>
+</tr>
+<tr>
+<td>Computer use</td>
+<td>OSWorld-Verified</td>
+<td align="right">84.8</td>
+<td>与 Fable 5 85.0 接近</td>
+</tr>
+<tr>
+<td>Vision/OCR</td>
+<td>OmniDocBench</td>
+<td align="right">91.1</td>
+<td>表中最高</td>
+</tr>
+<tr>
+<td>Vision</td>
+<td>Math-Vision 无/有 Python</td>
+<td align="right">94.3 / 97.8</td>
+<td>工具显著增强</td>
+</tr>
+<tr>
+<td>Vision</td>
+<td>ZeroBench pass@5 无/有 Python</td>
+<td align="right">23.0 / 41.0</td>
+<td>工具显著增强</td>
+</tr>
+</tbody></table>
+<p>论文自己的总体判断是：</p>
+<ul>
+<li>明显强于所比较的 GLM-5.2、GPT-5.5、Claude Opus 4.8；</li>
+<li>与最强 proprietary frontier 非常接近；</li>
+<li>总体仍落后 Claude Fable 5 和 GPT-5.6 Sol；</li>
+<li>优势最集中在 coding、agentic search、tool use、visual-agentic tasks；</li>
+<li>研究级纯 reasoning 仍是明显短板。</li>
+</ul>
+<h3 id="8-2-第三方评测">8.2 第三方评测</h3>
+<p>截至 2026-07-23，报告列出：</p>
+<ul>
+<li>Artificial Analysis Intelligence Index v4.1：57.1，第 4/580；</li>
+<li>Vals Index：74.7，第 2/39；</li>
+<li>WebDev Arena：1678 Elo，第 1/99；</li>
+<li>Text Arena：1486 Elo，第 8/200；</li>
+<li>Agent Arena：9.1，第 4/37。</li>
+</ul>
+<p>这些结果构成发布后的外部佐证；由于 Elo 会随新增投票持续更新，表中排名仅代表报告所对应的时间截面。</p>
+<h3 id="8-3-评测可比性注意事项">8.3 评测可比性注意事项</h3>
+<p>报告披露得比许多技术报告详细，但仍存在明显可比性限制：</p>
+<ol>
+<li><strong>harness 不统一</strong>：不同模型可能使用 Kimi Code、Claude Code 或 Codex，部分表格取多个 harness 中最好结果。</li>
+<li><strong>fallback/cyberguard</strong>：Claude Fable 5 可能 fallback，GPT-5.6 Sol 可能触发 cyberguard，会降低或改变部分得分。</li>
+<li><strong>内部 benchmark 与训练闭环</strong>：Kimi Code Bench、Coding Experience、KAET 等会直接指导内部数据迭代，存在 benchmark-informed optimization。</li>
+<li><strong>部分第三方分数为引用</strong>：不是所有 baseline 都由作者在完全相同环境下重跑。</li>
+<li><strong>1M 能力不等于所有任务实际用满 1M</strong>：BrowseComp 主结果在 300K 触发 context compaction；完全使用 1M 且不做 context management 时得分为 90.4，而表中 compaction 版本为 91.2。</li>
+<li><strong>temperature = 1.0</strong>：结果包含采样波动；视觉多数跑三次，ZeroBench 跑五次，但其他 benchmark 的重复次数并非全部清楚。</li>
+</ol>
+<h3 id="8-4-成本效率">8.4 成本效率</h3>
+<p>报告在 Kimi Code Bench 2.0、BrowseComp、GDPval-AA v2 和 AA-Briefcase 上比较 score / cost：</p>
+<ul>
+<li>Kimi Code Bench 2.0：比 Fable 5 低 4 分，但成本约 38%；</li>
+<li>BrowseComp：91.2，约 2.03 美元/题，约为 GPT-5.6 Sol 一半成本；</li>
+<li>GDPval-AA v2：与 GPT-5.6 Sol 相差不到 50 Elo，成本低约 13%，相对 Fable 5 便宜约 2.6 倍；</li>
+<li>AA-Briefcase：得分第二，成本约为 Fable 5 一半。</li>
+</ul>
+<p>这些成本来自不同来源：</p>
+<ul>
+<li>K3 有内部实测；</li>
+<li>Claude/GPT 的部分成本来自厂商公开图表；</li>
+<li>GDPval/Briefcase 使用 Artificial Analysis 的 API price。</li>
+</ul>
+<p>因此它说明 K3 位于这些任务的 cost-performance frontier 附近，但不是严格统一硬件上的 serving efficiency benchmark。</p>
+<hr>
+<h2 id="9-贡献分层与创新性分析">9. 贡献分层与创新性分析</h2>
+<h3 id="9-1-架构层面">9.1 架构层面</h3>
+<p>报告中相对前代配置的新增或新参数化：</p>
+<ul>
+<li>KDA lower-bounded sigmoid decay；</li>
+<li>KDA full-rank channel-wise output gate；</li>
+<li>MLA full-rank channel-wise output gate；</li>
+<li>Stable LatentMoE 组合；</li>
+<li>routed aggregate 后 RMSNorm；</li>
+<li>SiTU-GLU；</li>
+<li>K3 规模下的 Quantile Balancing + histogram estimator；</li>
+<li>Per-Head Muon；</li>
+<li>MoonViT-V2 从零联合训练 recipe。</li>
+</ul>
+<p>报告明确采用、延续或建立在其上的组件：</p>
+<ul>
+<li>KDA 与 3:1 KDA-MLA hybrid：报告明确以 Kimi Linear 为基础并跟随其 hybrid design；</li>
+<li>MLA：报告明确说明由 DeepSeek-V2 提出，并由 Kimi K2/K2.5 延续；</li>
+<li>shared/routed expert 组织：报告明确写明 follows DeepSeekMoE；</li>
+<li>LatentMoE：报告以原 LatentMoE 为比较对象并给出 Stable LatentMoE 的改动；</li>
+<li>auxiliary-loss-free bias routing：报告明确写明 adopts，并引用 DeepSeek-V3；</li>
+<li>AttnRes：K3 采用 Kimi Team 单独论文提出的 Block AttnRes；</li>
+<li>MoonViT 时空视觉路线：报告明确说明 MoonViT-V2 follows Kimi K2.5 的整体设计；</li>
+<li>MTP、EAGLE-3-style draft、MOPD、partial rollout：报告分别点名这些方法或先行实现。</li>
+</ul>
+<p>仅能确认“相关”、不宜写成直接派生的关系：</p>
+<ul>
+<li>Gated Attention [100] 与 K3 的 KDA/MLA output gate：报告在门控说明处引用 [100]，但没有声明 full-rank channel gate 由其直接改造；</li>
+<li>BASE Layers/BIP 与 QB：可以帮助理解最优分配视角，但 K3 报告没有把它们列为 QB 的直接来源；</li>
+<li>mHC/Hyper-Connections 与 AttnRes、ReplaySSM 与 KDA state replay：属于相似问题下的平行或同期路线。</li>
+</ul>
+<h3 id="9-2-系统层面">9.2 系统层面</h3>
+<p>较明确的新贡献：</p>
+<ul>
+<li>KDA affine-transition Context Parallelism；</li>
+<li>MoonEP perfect-balance 上界、online planner、zero-copy/static-shape execution；</li>
+<li>hybrid KDA/MLA unified prefix cache；</li>
+<li>physical block 与 hash block 解耦；</li>
+<li>speculative KDA projected-input replay；</li>
+<li>3T multimodal pipeline 中 activation、vision 和 Muon 的联合内存调度；</li>
+<li>AgentENV 在 K3 agentic RL 中的大规模应用；</li>
+<li>长短请求分预算的 fleet admission。</li>
+</ul>
+<h3 id="9-3-后训练层面">9.3 后训练层面</h3>
+<p>方法本身多为整合，但规模和组合是贡献：</p>
+<ul>
+<li>三大 domain x 三 effort 的九个 RL experts；</li>
+<li>partial rollout + persistent KV + resumable sandbox；</li>
+<li>MOPD 合并专家；</li>
+<li>全后训练阶段 MXFP4/MXFP8 QAT；</li>
+<li>1M context 的专业工作、软件工程、视觉和长期 assistant 环境。</li>
+</ul>
+<hr>
+<h2 id="10-证据边界与局限">10. 证据边界与局限</h2>
+<h3 id="10-1-训练规模披露不足">10.1 训练规模披露不足</h3>
+<p>没有公开：</p>
+<ul>
+<li>预训练 token 总量；</li>
+<li>GPU 数、GPU 型号；</li>
+<li>总训练天数；</li>
+<li>GPU-hours；</li>
+<li>总训练 FLOPs；</li>
+<li>MFU；</li>
+<li>训练吞吐；</li>
+<li>SFT/RL 样本数、steps 和 compute；</li>
+<li>每个 RL expert 的训练预算。</li>
+</ul>
+<p>只说 1M-context RL experiment 在“几百张 GPUs”内，无法做成本复现。</p>
+<h3 id="10-2-2-5-倍-scaling-efficiency-无法归因">10.2 2.5 倍 scaling efficiency 无法归因</h3>
+<p>图 7 把以下因素全部合并：</p>
+<ul>
+<li>architecture；</li>
+<li>data；</li>
+<li>optimizer；</li>
+<li>schedule；</li>
+<li>model shape；</li>
+<li>TPP。</li>
+</ul>
+<p>没有公开完整 ablation factorial，因此 2.5 倍只能归因于“整套 K3 family”，不能归因于某个 headline module。</p>
+<h3 id="10-3-架构证据有强弱之分">10.3 架构证据有强弱之分</h3>
+<p>较强：</p>
+<ul>
+<li>KDA lower bound 有清晰的 BF16 动态范围和 kernel path 论证；</li>
+<li>QB 有 LP dual 推导和分布式 histogram 实现；</li>
+<li>AttnRes 有独立论文 scaling experiments；</li>
+<li>MoonEP 有上界证明和开源实现；</li>
+<li>model config、weights、关键 kernels 已公开。</li>
+</ul>
+<p>较弱：</p>
+<ul>
+<li>Per-Head Muon 没有独立消融数字；</li>
+<li>routed aggregate RMSNorm 的收益只定性描述；</li>
+<li>SiTU-GLU 没有在本报告给出与 SwiGLU 的完整等算力 benchmark；</li>
+<li>3:1 ratio 的 K3 级消融未公开；</li>
+<li>MoonViT-V2 主要给 gradient norm 图和“评测相当”的总结，没有完整表；</li>
+<li>基础设施缺少端到端 MFU、step time、tokens/s 对比。</li>
+</ul>
+<h3 id="10-4-开放性与许可证边界">10.4 开放性与许可证边界</h3>
+<p>K3 发布完整 weights 和代码，研究价值很高；但官方 Kimi K3 License 对大型 Model-as-a-Service 商业使用和超大商业产品有额外条件。因此更准确称作：</p>
+<blockquote>
+<p>open-weight frontier model，而不是无附加条件的 OSI-style open-source model。</p>
+</blockquote>
+<p>来源：<a href="https://github.com/MoonshotAI/Kimi-K3/blob/main/LICENSE" target="_blank" rel="noreferrer">Kimi K3 License</a>。</p>
+<h3 id="10-5-综合评价">10.5 综合评价</h3>
+<p>K3 最有价值的地方不是某个孤立公式，而是把：</p>
+<ul>
+<li>subquadratic attention；</li>
+<li>depth-wise retrieval；</li>
+<li>近千 expert 的 latent MoE；</li>
+<li>原生多模态；</li>
+<li>低精度部署；</li>
+<li>1M agentic RL；</li>
+<li>cache、sandbox、fleet scheduling；</li>
+</ul>
+<p>做成了一个相互约束的整体。</p>
+<p>其论文证据足以支持“这是一套有实质架构与系统创新的 3T-class open-weight 模型”，但不足以支持“已严格证明每个新组件都独立优于所有替代方案”，也不足以估算完整训练成本。</p>
+<hr>
+<h2 id="11-技术要点溯源速查表">11. 技术要点溯源速查表</h2>
+<p>表中“关系与证据”刻意区分“报告明确陈述”和“本文用于理解的外部对照”；后者不代表作者一定参考过该工作。</p>
+<table>
+<thead>
+<tr>
+<th>技术点</th>
+<th>关系与证据</th>
+<th>K3 的变化</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Delta rule memory update</td>
+<td>历史基础：<a href="https://proceedings.mlr.press/v139/schlag21a.html" target="_blank" rel="noreferrer">Fast Weight Programmers</a></td>
+<td>通过 KDA 的技术脉络进入 K3</td>
+</tr>
+<tr>
+<td>Gated delta recurrence</td>
+<td>历史基础：<a href="https://openreview.net/forum?id=r8H7xhYPwz" target="_blank" rel="noreferrer">Gated DeltaNet</a></td>
+<td>为 Kimi Linear/KDA 的 gated recurrence 提供背景</td>
+</tr>
+<tr>
+<td>KDA</td>
+<td>报告明确建立于 <a href="https://arxiv.org/abs/2510.26692" target="_blank" rel="noreferrer">Kimi Linear</a></td>
+<td>lower-bounded decay + full-rank output gate</td>
+</tr>
+<tr>
+<td>MLA</td>
+<td>报告明确称其由 <a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noreferrer">DeepSeek-V2</a> 提出</td>
+<td>NoPE + full-rank channel gate</td>
+</tr>
+<tr>
+<td>Output-gated attention</td>
+<td>报告在 KDA/MLA gate 处引用 <a href="https://arxiv.org/abs/2505.06708" target="_blank" rel="noreferrer">Gated Attention</a>；未声明直接派生</td>
+<td>采用 full-rank channel-wise gate，而非该论文的代表性 head gate</td>
+</tr>
+<tr>
+<td>Hybrid linear/global attention</td>
+<td>报告明确 follows <a href="https://arxiv.org/abs/2510.26692" target="_blank" rel="noreferrer">Kimi Linear</a></td>
+<td>放大到 69 KDA + 24 MLA</td>
+</tr>
+<tr>
+<td>NoPE MLA</td>
+<td>报告明确 follows <a href="https://arxiv.org/abs/2510.26692" target="_blank" rel="noreferrer">Kimi Linear</a> hybrid design</td>
+<td>全部 MLA 使用，配合 1M 扩窗</td>
+</tr>
+<tr>
+<td>Residual connection</td>
+<td>历史背景：<a href="https://arxiv.org/abs/1512.03385" target="_blank" rel="noreferrer">ResNet</a> 与 Transformer residual</td>
+<td>AttnRes 用深度 attention 改造固定累积</td>
+</tr>
+<tr>
+<td>AttnRes</td>
+<td>报告明确采用 <a href="https://arxiv.org/abs/2603.15031" target="_blank" rel="noreferrer">Attention Residuals</a></td>
+<td>K3 使用 12 层/block</td>
+</tr>
+<tr>
+<td>Shared experts</td>
+<td>报告明确 follows <a href="https://arxiv.org/abs/2401.06066" target="_blank" rel="noreferrer">DeepSeekMoE</a> 的 shared/routed 组织</td>
+<td>2 个 shared experts</td>
+</tr>
+<tr>
+<td>LatentMoE</td>
+<td>报告以 <a href="https://arxiv.org/abs/2601.18089" target="_blank" rel="noreferrer">LatentMoE</a> 为基础比较</td>
+<td>加 norm、SiTU、QB，扩到 896 experts</td>
+</tr>
+<tr>
+<td>Auxiliary-loss-free routing</td>
+<td>报告明确 adopts <a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noreferrer">DeepSeek-V3</a></td>
+<td>sign bias update 改成 quantile update</td>
+</tr>
+<tr>
+<td>Quantile Balancing</td>
+<td>报告引用<a href="https://spaces.ac.cn/archives/11619" target="_blank" rel="noreferrer">最优分配/QB</a>；<a href="https://proceedings.mlr.press/v139/lewis21a.html" target="_blank" rel="noreferrer">BASE Layers</a> 与 <a href="https://arxiv.org/abs/2502.15451" target="_blank" rel="noreferrer">BIP</a> 为本文外部对照</td>
+<td>全局 histogram quantile，适配近千 experts</td>
+</tr>
+<tr>
+<td>GLU / SwiGLU</td>
+<td>报告用 <a href="https://proceedings.mlr.press/v70/dauphin17a.html" target="_blank" rel="noreferrer">GLU</a> 和 <a href="https://arxiv.org/abs/2002.05202" target="_blank" rel="noreferrer">SwiGLU</a> 作为定义与比较基线</td>
+<td>对两个无界乘法因子分别做 smooth cap</td>
+</tr>
+<tr>
+<td>SiTU-GLU</td>
+<td>K3 报告提出</td>
+<td><span class="math-inline">\(\beta_1=4,\beta_2=25\)</span>，输出绝对值上界 100</td>
+</tr>
+<tr>
+<td>MoonViT</td>
+<td>报告明确延续 <a href="https://arxiv.org/abs/2504.07491" target="_blank" rel="noreferrer">Kimi-VL</a> / <a href="https://arxiv.org/abs/2602.02276" target="_blank" rel="noreferrer">Kimi K2.5</a> 的整体设计</td>
+<td>MoonViT-V2 改为 from-scratch NTP 联合训练</td>
+</tr>
+<tr>
+<td>Muon 路线</td>
+<td>报告明确 follows Kimi K2 的 <a href="https://arxiv.org/abs/2507.20534" target="_blank" rel="noreferrer">MuonClip</a>；<a href="https://arxiv.org/abs/2502.16982" target="_blank" rel="noreferrer">Moonlight</a> 是可扩展 Muon 背景</td>
+<td>Q/K/V momentum 按 head orthogonalize</td>
+</tr>
+<tr>
+<td>MTP / EAGLE-3 draft</td>
+<td>报告点名 <a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noreferrer">DeepSeek-V3 MTP</a> 与 <a href="https://arxiv.org/abs/2503.01840" target="_blank" rel="noreferrer">EAGLE-3</a> style</td>
+<td>一层 MTP 改造成融合低/中/高层特征的 draft</td>
+</tr>
+<tr>
+<td>LK loss</td>
+<td>报告明确采用 <a href="https://arxiv.org/abs/2602.23881" target="_blank" rel="noreferrer">LK Losses</a></td>
+<td>优化 speculative acceptance</td>
+</tr>
+<tr>
+<td>Partial rollout</td>
+<td>报告引用 <a href="https://arxiv.org/abs/2501.12599" target="_blank" rel="noreferrer">Kimi K1.5</a> / K2.5</td>
+<td>与 persistent sandbox/KV 结合</td>
+</tr>
+<tr>
+<td>MOPD</td>
+<td>报告明确 adopts <a href="https://arxiv.org/abs/2601.02780" target="_blank" rel="noreferrer">MiMo-V2-Flash</a> 的 MOPD，并引用 <a href="https://thinkingmachines.ai/blog/on-policy-distillation/" target="_blank" rel="noreferrer">On-Policy Distillation</a></td>
+<td>9 个 domain-effort teachers</td>
+</tr>
+<tr>
+<td>MXFP4/MXFP8</td>
+<td>格式背景：<a href="https://arxiv.org/abs/2310.10537" target="_blank" rel="noreferrer">Microscaling Formats</a></td>
+<td>从 SFT 起全程 QAT</td>
+</tr>
+<tr>
+<td>FlashKDA</td>
+<td>K3 <a href="https://github.com/MoonshotAI/FlashKDA" target="_blank" rel="noreferrer">官方实现</a></td>
+<td>lower-bound 路径和训练/prefill kernel</td>
+</tr>
+<tr>
+<td>Linear attention CP</td>
+<td><a href="https://arxiv.org/abs/2404.02882" target="_blank" rel="noreferrer">LASP</a>、<a href="https://arxiv.org/abs/2502.07563" target="_blank" rel="noreferrer">LASP-2</a> 为相关 sequence-parallel 背景</td>
+<td>KCP 使用 affine transition pair</td>
+</tr>
+<tr>
+<td>Perfect-balance EP</td>
+<td>K3 报告提出并开源 <a href="https://github.com/MoonshotAI/MoonEP" target="_blank" rel="noreferrer">MoonEP</a></td>
+<td>动态冗余 expert、静态 shape、zero copy</td>
+</tr>
+<tr>
+<td>Remote activation/KV transfer</td>
+<td>报告明确使用 <a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noreferrer">Mooncake</a> Transfer Engine</td>
+<td>PP rank 间 activation 均衡和长期 cache</td>
+</tr>
+<tr>
+<td>Agent microVM</td>
+<td>AgentENV 明确建立在 <a href="https://www.usenix.org/conference/nsdi20/presentation/agache" target="_blank" rel="noreferrer">Firecracker</a> 上</td>
+<td>pause/resume/fork/snapshot</td>
+</tr>
+<tr>
+<td>AgentENV</td>
+<td>K3 <a href="https://github.com/kvcache-ai/AgentENV" target="_blank" rel="noreferrer">官方实现</a></td>
+<td>支撑大规模长期 agentic RL</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="12-模块功能摘要">12. 模块功能摘要</h2>
+<ul>
+<li><strong>KDA</strong>：把长历史压进固定矩阵状态，并能按通道遗忘、按 key 方向改写。</li>
+<li><strong>Lower-bounded decay</strong>：用数值范围保证换取统一 Tensor Core kernel 路径。</li>
+<li><strong>Gated MLA</strong>：偶尔做一次全局 token 读取，再让当前 token 决定哪些输出通道值得保留。</li>
+<li><strong>NoPE</strong>：MLA q/k 不显式旋转位置，顺序感由 KDA 和已有 hidden state 提供。</li>
+<li><strong>AttnRes</strong>：把“选历史 token”推广成“选历史层/历史 block”。</li>
+<li><strong>LatentMoE</strong>：先降维再送 routed experts，以较低通信和权重读取成本扩大 expert 组合空间。</li>
+<li><strong>RMSNorm + SiTU</strong>：前者固定 mixture 输出尺度，后者给乘法 FFN 的极端激活设平滑上界。</li>
+<li><strong>QB</strong>：不再慢慢调 expert bias，而是直接用目标负载对应的 score quantile 更新 bias。</li>
+<li><strong>MoonViT-V2</strong>：不依赖 SigLIP 初始化，从预训练第一天就为 next-token objective 学视觉表示。</li>
+<li><strong>Per-Head Muon</strong>：各 attention head 独立正交化 momentum，避免大梯度 head 支配其他 heads。</li>
+<li><strong>MOPD</strong>：student 走自己的轨迹，多个专长 teacher 对每个 token 给 dense signal。</li>
+<li><strong>MoonEP</strong>：复制少量热门 experts，把每个 rank 的 token 数强制做成完全相同。</li>
+<li><strong>KDA-aware prefix cache</strong>：MLA KV 与 KDA state 必须在同一 prefix boundary 一起命中。</li>
+</ul>
+</article>
+      </div>
+
+      <footer class="page-footer">Kimi K3 技术报告中文导读 · 基于论文、官方配置与原始技术来源整理</footer>
+    </main>
+  </div>
+  <button class="back-top" aria-label="返回顶部">↑</button>
+
+  <script>
+    (function () {
+      document.querySelectorAll("table").forEach(function (table) {
+        var wrapper = document.createElement("div");
+        wrapper.className = "table-wrap";
+        table.parentNode.insertBefore(wrapper, table);
+        wrapper.appendChild(table);
+      });
+
+      var progress = document.querySelector(".progress");
+      var backTop = document.querySelector(".back-top");
+      function updateScroll() {
+        var available = document.documentElement.scrollHeight - window.innerHeight;
+        progress.style.width = (available > 0 ? window.scrollY / available * 100 : 0) + "%";
+        backTop.classList.toggle("show", window.scrollY > 700);
+      }
+      window.addEventListener("scroll", updateScroll, { passive: true });
+      updateScroll();
+
+      backTop.addEventListener("click", function () {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+
+      var menu = document.querySelector(".mobile-menu");
+      menu.addEventListener("click", function () {
+        var open = document.body.classList.toggle("nav-open");
+        menu.setAttribute("aria-expanded", String(open));
+      });
+      document.querySelectorAll(".toc-link").forEach(function (link) {
+        link.addEventListener("click", function () {
+          document.body.classList.remove("nav-open");
+          menu.setAttribute("aria-expanded", "false");
+        });
+      });
+
+      var tocLinks = Array.from(document.querySelectorAll(".toc-link"));
+      var targets = tocLinks
+        .map(function (link) { return document.getElementById(link.dataset.section); })
+        .filter(Boolean);
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          tocLinks.forEach(function (link) {
+            link.classList.toggle("active", link.dataset.section === entry.target.id);
+          });
+        });
+      }, { rootMargin: "-12% 0px -78% 0px" });
+      targets.forEach(function (target) { observer.observe(target); });
+
+      window.addEventListener("load", function () {
+        if (window.mermaid) {
+          window.mermaid.initialize({
+            startOnLoad: false,
+            theme: "base",
+            securityLevel: "loose",
+            flowchart: { curve: "basis", htmlLabels: false },
+            themeVariables: {
+              fontFamily: "Songti SC, Noto Serif CJK SC, serif",
+              primaryColor: "#ffffff",
+              primaryTextColor: "#050505",
+              primaryBorderColor: "#111111",
+              lineColor: "#111111",
+              secondaryColor: "#eeeeea",
+              tertiaryColor: "#f7f7f3"
+            }
+          });
+          window.mermaid.run({ nodes: document.querySelectorAll(".mermaid") })
+            .then(function () { document.documentElement.dataset.mermaidReady = "true"; })
+            .catch(function () { document.documentElement.dataset.mermaidReady = "error"; });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
