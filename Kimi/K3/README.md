@@ -4,7 +4,7 @@
 
 ## 阅读入口
 
-- [HTML 分析](analysis/kimi-k3-analysis.html)
+- [HTML 分析](https://aceee-1222.github.io/technical-report-notes/Kimi/K3/analysis/kimi-k3-analysis.html)
 - [PDF 分析](analysis/kimi-k3-analysis.pdf)
 - [原始技术报告](original/k3_tech_report.pdf)
 - [官方仓库](https://github.com/MoonshotAI/Kimi-K3)
