@@ -1,0 +1,1704 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="openPangu 2.0 技术报告中文深度解读：MLA、DSA-SWA、PAS、ModAttn、MoE、mHC、Muon、预训练、后训练、昇腾推理系统与技术谱系。">
+  <meta name="theme-color" content="#cf0a2c">
+  <title>openPangu 2.0 技术报告｜架构、训练与昇腾系统</title>
+  <style>
+    :root {
+      --blue: #cf0a2c;
+      --blue-deep: #9e001d;
+      --blue-ink: #671326;
+      --blue-soft: #fff0f3;
+      --blue-pale: #fff8f9;
+      --cyan: #ef3557;
+      --ink: #251a1d;
+      --muted: #716368;
+      --line: #ead9dd;
+      --line-strong: #d9adb6;
+      --paper: #ffffff;
+      --canvas: #f8f6f6;
+      --green: #128a68;
+      --amber: #b36d0a;
+      --red: #c74747;
+      --shadow: 0 20px 65px rgb(37 65 150 / 11%);
+      --sans: Inter, "SF Pro Display", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+      --serif: "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+      --mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 82% 2%, rgb(77 107 254 / 13%), transparent 28rem),
+        linear-gradient(180deg, #f9fbff 0, var(--canvas) 38rem, #fff8f9 100%);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.78;
+      text-rendering: optimizeLegibility;
+    }
+
+    a {
+      color: var(--blue-deep);
+      text-decoration-color: rgb(77 107 254 / 42%);
+      text-underline-offset: 3px;
+    }
+    a:hover { color: #1735bb; text-decoration-color: currentColor; }
+    code, .mono { font-family: var(--mono); }
+    code {
+      padding: .12em .38em;
+      border: 1px solid #dde5fb;
+      border-radius: 5px;
+      background: #f2f5fd;
+      color: #24396d;
+      font-size: .9em;
+    }
+
+    .progress {
+      position: fixed;
+      inset: 0 auto auto 0;
+      z-index: 99;
+      width: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--cyan), var(--blue));
+      box-shadow: 0 0 16px rgb(77 107 254 / 55%);
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 292px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 28px 24px 24px;
+      border-right: 1px solid var(--line);
+      background: rgb(255 255 255 / 96%);
+      backdrop-filter: blur(18px);
+    }
+
+    .side-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+      text-decoration: none;
+    }
+    .side-brand img {
+      width: 154px;
+      height: auto;
+      display: block;
+    }
+    .edition {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin: 0 0 22px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--blue-pale);
+      font: 650 10px/1 var(--mono);
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+    .edition::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 0 4px rgb(77 107 254 / 12%);
+    }
+    .toc-label {
+      display: block;
+      margin: 0 0 10px;
+      color: #8792ad;
+      font: 700 10px/1.4 var(--mono);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .toc a {
+      display: block;
+      margin: 2px 0;
+      padding: 6px 9px;
+      border-left: 2px solid transparent;
+      border-radius: 0 7px 7px 0;
+      color: #64708a;
+      text-decoration: none;
+      font-size: 12px;
+      line-height: 1.42;
+      transition: .18s ease;
+    }
+    .toc a:hover, .toc a.active {
+      border-left-color: var(--blue);
+      color: var(--blue-deep);
+      background: var(--blue-soft);
+    }
+    .side-note {
+      margin-top: 24px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(145deg, #f9fbff, #fff0f3);
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .main { min-width: 0; }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 610px;
+      padding: 76px clamp(34px, 7vw, 104px) 70px;
+      color: white;
+      background:
+        radial-gradient(circle at 85% 16%, rgb(85 206 255 / 28%), transparent 23rem),
+        radial-gradient(circle at 6% 86%, rgb(118 153 255 / 24%), transparent 28rem),
+        linear-gradient(135deg, #0c1e60 0%, #2748d5 52%, #cf0a2c 100%);
+    }
+    .hero::before, .hero::after {
+      content: "";
+      position: absolute;
+      border: 1px solid rgb(255 255 255 / 14%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .hero::before {
+      width: 620px;
+      height: 620px;
+      right: -260px;
+      top: -300px;
+      box-shadow: 0 0 0 78px rgb(255 255 255 / 2.7%), 0 0 0 156px rgb(255 255 255 / 1.8%);
+    }
+    .hero::after {
+      width: 420px;
+      height: 180px;
+      left: 42%;
+      bottom: -145px;
+      transform: rotate(-7deg);
+      border-width: 2px;
+    }
+    .hero-inner { position: relative; z-index: 1; max-width: 1080px; }
+    .hero-logo {
+      display: inline-flex;
+      align-items: center;
+      padding: 12px 17px;
+      border: 1px solid rgb(255 255 255 / 32%);
+      border-radius: 13px;
+      background: white;
+      box-shadow: 0 12px 28px rgb(4 18 72 / 25%);
+    }
+    .hero-logo img { width: 180px; height: auto; display: block; }
+    .eyebrow {
+      margin: 36px 0 15px;
+      color: #cbd8ff;
+      font: 700 12px/1.4 var(--mono);
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      max-width: 940px;
+      margin: 0;
+      font-size: clamp(42px, 6.2vw, 78px);
+      line-height: 1.04;
+      letter-spacing: -.045em;
+      font-weight: 790;
+    }
+    .hero h1 span { color: #a9d7ff; font-weight: 560; }
+    .dek {
+      max-width: 850px;
+      margin: 26px 0 0;
+      color: #dce6ff;
+      font-family: var(--serif);
+      font-size: clamp(17px, 2vw, 22px);
+      line-height: 1.7;
+    }
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 30px;
+    }
+    .hero-meta span {
+      padding: 7px 10px;
+      border: 1px solid rgb(255 255 255 / 23%);
+      border-radius: 999px;
+      color: #e6edff;
+      background: rgb(8 28 91 / 22%);
+      font: 620 11px/1 var(--mono);
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 11px;
+      margin-top: 20px;
+    }
+    .hero-actions a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 39px;
+      padding: 0 15px;
+      border: 1px solid rgb(255 255 255 / 36%);
+      border-radius: 9px;
+      color: white;
+      background: rgb(8 28 91 / 24%);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 720;
+      transition: .18s ease;
+    }
+    .hero-actions a:first-child {
+      border-color: white;
+      color: var(--blue-deep);
+      background: white;
+    }
+    .hero-actions a:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgb(5 18 72 / 18%); }
+
+    .content-wrap {
+      width: min(1120px, calc(100% - 48px));
+      margin: -42px auto 90px;
+      position: relative;
+      z-index: 3;
+    }
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      overflow: hidden;
+      margin-bottom: 24px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: white;
+      box-shadow: var(--shadow);
+    }
+    .metric {
+      min-height: 128px;
+      padding: 24px;
+      border-right: 1px solid var(--line);
+    }
+    .metric:last-child { border-right: 0; }
+    .metric strong {
+      display: block;
+      color: var(--blue-deep);
+      font-size: 27px;
+      line-height: 1.15;
+      letter-spacing: -.03em;
+    }
+    .metric span {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    article {
+      padding: clamp(30px, 5vw, 72px);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+    article > section + section { margin-top: 86px; }
+    h2, h3, h4 { color: var(--ink); scroll-margin-top: 28px; }
+    h2 {
+      margin: 0 0 30px;
+      padding-top: 19px;
+      border-top: 3px solid var(--blue);
+      font-size: clamp(29px, 4vw, 43px);
+      line-height: 1.18;
+      letter-spacing: -.035em;
+    }
+    h2 .num {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--blue);
+      font: 800 11px/1.3 var(--mono);
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    h3 {
+      margin: 48px 0 17px;
+      font-size: 23px;
+      line-height: 1.35;
+      letter-spacing: -.018em;
+    }
+    h4 {
+      margin: 30px 0 12px;
+      color: var(--blue-ink);
+      font-size: 17px;
+    }
+    p { margin: 0 0 19px; }
+    ul, ol { margin: 13px 0 23px; padding-left: 1.35em; }
+    li { margin: 7px 0; }
+    strong { font-weight: 760; }
+
+    .lead {
+      color: #25314d;
+      font-family: var(--serif);
+      font-size: 19px;
+      line-height: 1.85;
+    }
+    .callout {
+      margin: 25px 0;
+      padding: 22px 24px;
+      border: 1px solid #cbd7f7;
+      border-left: 5px solid var(--blue);
+      border-radius: 10px;
+      background: linear-gradient(145deg, #f9fbff, #fff0f3);
+    }
+    .callout strong:first-child {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--blue-deep);
+      font-size: 14px;
+    }
+    .callout.caution {
+      border-color: #ead9b8;
+      border-left-color: #cf8c26;
+      background: #fffaf0;
+    }
+    .callout.caution strong:first-child { color: #956013; }
+    .callout.limit {
+      border-color: #efd1d1;
+      border-left-color: var(--red);
+      background: #fff8f8;
+    }
+    .callout.limit strong:first-child { color: #aa3a3a; }
+    .quote {
+      margin: 27px 0;
+      padding: 21px 25px;
+      border-left: 4px solid var(--blue);
+      background: #f5f8ff;
+      color: #27365e;
+      font-family: var(--serif);
+      font-size: 18px;
+    }
+    .quote cite {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font: 11px/1.5 var(--mono);
+    }
+
+    .grid-2, .grid-3, .grid-4 {
+      display: grid;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card {
+      padding: 21px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: var(--blue-pale);
+    }
+    .card .kicker {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--blue);
+      font: 750 10px/1.4 var(--mono);
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    .card h4 { margin: 0 0 8px; }
+    .card p { margin: 0; color: #52607d; font-size: 13px; line-height: 1.65; }
+
+    .evidence-legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 22px 0 30px;
+    }
+    .evidence {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fbfcff;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .evidence b { display: block; margin-bottom: 3px; }
+    .evidence.explicit b { color: var(--green); }
+    .evidence.cited b { color: var(--blue-deep); }
+    .evidence.compare b { color: var(--amber); }
+    .evidence.infer b { color: #7b4fb4; }
+
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      margin: 26px 0;
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+    .flow .step {
+      flex: 1 0 120px;
+      min-height: 86px;
+      display: grid;
+      place-items: center;
+      padding: 13px;
+      border: 1px solid #c9d5f5;
+      border-radius: 10px;
+      background: #fff8f9;
+      color: #23376f;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 680;
+      line-height: 1.45;
+    }
+    .flow .arrow {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      color: var(--blue);
+      font-size: 22px;
+    }
+
+    .equation {
+      margin: 22px 0;
+      padding: 19px 22px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8faff;
+      color: #1d3069;
+      text-align: center;
+      font-family: var(--serif);
+      font-size: 18px;
+      line-height: 1.8;
+      letter-spacing: .01em;
+    }
+    .equation .note {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font: 11px/1.5 var(--sans);
+    }
+
+    .table-wrap {
+      margin: 24px 0;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    th, td {
+      padding: 11px 13px;
+      border-bottom: 1px solid #e7ecf8;
+      border-right: 1px solid #edf0f8;
+      text-align: left;
+      vertical-align: top;
+    }
+    th:last-child, td:last-child { border-right: 0; }
+    tr:last-child td { border-bottom: 0; }
+    th {
+      color: #264083;
+      background: #fff0f3;
+      font-weight: 740;
+    }
+    tbody tr:nth-child(even) td { background: #fbfcff; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    figure {
+      margin: 32px 0;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fbfcff;
+    }
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 690px;
+      object-fit: contain;
+      background: white;
+    }
+    figure.narrow img { max-width: 690px; margin: 0 auto; }
+    figcaption {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+    figcaption b { color: var(--blue-ink); }
+
+    .layer-stack {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin: 25px 0;
+    }
+    .layers {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fbfcff;
+    }
+    .layers h4 { margin-top: 0; }
+    .layer-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin: 12px 0 8px;
+    }
+    .layer-row span {
+      min-width: 27px;
+      padding: 6px 7px;
+      border-radius: 5px;
+      color: white;
+      text-align: center;
+      font: 650 9px/1 var(--mono);
+    }
+    .layer-row .swa { background: #7a88a7; }
+    .layer-row .csa { background: var(--blue); }
+    .layer-row .hca { background: #37a8c6; }
+    .layers small { color: var(--muted); }
+
+    .lineage {
+      margin: 26px 0;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background:
+        linear-gradient(#f8f6f6 1px, transparent 1px),
+        linear-gradient(90deg, #f8f6f6 1px, transparent 1px),
+        #fbfcff;
+      background-size: 24px 24px;
+    }
+    .lineage-row {
+      display: grid;
+      grid-template-columns: minmax(135px, .75fr) minmax(150px, 1fr) minmax(180px, 1fr);
+      align-items: center;
+      gap: 10px;
+      margin: 13px 0;
+    }
+    .lineage-node {
+      padding: 11px 13px;
+      border: 1px solid #bfcdf3;
+      border-radius: 9px;
+      background: white;
+      color: #203774;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+      box-shadow: 0 5px 14px rgb(40 67 143 / 7%);
+    }
+    .lineage-edge {
+      position: relative;
+      min-height: 36px;
+      display: grid;
+      place-items: center;
+      color: #566485;
+      text-align: center;
+      font-size: 9px;
+      line-height: 1.3;
+    }
+    .lineage-edge::before {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      left: 0;
+      right: 12px;
+      top: 50%;
+      border-top: 2px solid var(--blue);
+    }
+    .lineage-edge::after {
+      content: "▶";
+      position: absolute;
+      right: 0;
+      top: calc(50% - 8px);
+      color: var(--blue);
+      font-size: 12px;
+    }
+    .lineage-edge.dashed::before { border-top-style: dashed; border-top-color: #8b6eb4; }
+    .lineage-edge.dashed::after { color: #8b6eb4; }
+    .lineage-edge span {
+      position: relative;
+      z-index: 1;
+      max-width: 150px;
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: #fbfcff;
+    }
+    .lineage-key {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .lineage-key span::before {
+      content: "";
+      display: inline-block;
+      width: 38px;
+      margin-right: 7px;
+      border-top: 2px solid var(--blue);
+      vertical-align: middle;
+    }
+    .lineage-key .dash::before { border-top-style: dashed; border-top-color: #8b6eb4; }
+
+    .refs {
+      columns: 2;
+      column-gap: 38px;
+      padding-left: 1.2em;
+      font-size: 12px;
+    }
+    .refs li { break-inside: avoid; margin: 0 0 10px; }
+    .footer {
+      margin-top: 70px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      color: #7b87a3;
+      font: 10px/1.5 var(--mono);
+    }
+    .backtop {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 20;
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #cbd7f7;
+      border-radius: 50%;
+      color: var(--blue-deep);
+      background: rgb(255 255 255 / 94%);
+      box-shadow: 0 10px 30px rgb(32 56 130 / 14%);
+      text-decoration: none;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: .2s ease;
+    }
+    .backtop.visible { opacity: 1; transform: none; }
+
+    @media (max-width: 1050px) {
+      .page { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .hero { min-height: auto; padding-top: 58px; }
+      .content-wrap { width: min(940px, calc(100% - 30px)); }
+    }
+    @media (max-width: 760px) {
+      body { font-size: 15px; }
+      .hero { padding: 42px 24px 58px; }
+      .hero h1 { font-size: 42px; }
+      .hero-logo img { width: 145px; }
+      .metric-strip { grid-template-columns: repeat(2, 1fr); }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      article { padding: 29px 22px; border-radius: 14px; }
+      article > section + section { margin-top: 68px; }
+      .grid-2, .grid-3, .grid-4, .evidence-legend, .layer-stack { grid-template-columns: 1fr; }
+      .lineage-row { grid-template-columns: 1fr; }
+      .lineage-edge { min-height: 54px; }
+      .lineage-edge::before {
+        left: 50%;
+        right: auto;
+        top: 0;
+        bottom: 12px;
+        border-top: 0;
+        border-left: 2px solid var(--blue);
+      }
+      .lineage-edge.dashed::before { border-left-style: dashed; }
+      .lineage-edge::after { content: "▼"; right: calc(50% - 6px); top: auto; bottom: 0; }
+      .refs { columns: 1; }
+      .footer { flex-direction: column; }
+    }
+
+    @page { size: A4; margin: 18mm 15mm 20mm; }
+    @media print {
+      body { background: white; font-size: 10pt; line-height: 1.62; }
+      .progress, .sidebar, .backtop { display: none !important; }
+      .page { display: block; }
+      .hero {
+        min-height: 238mm;
+        padding: 42mm 18mm 22mm;
+        break-after: page;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .hero-actions { display: none; }
+      .hero h1 { font-size: 45pt; }
+      .hero .dek { font-size: 15pt; }
+      .content-wrap { width: auto; margin: 0; }
+      .metric-strip { margin: 0 0 10mm; box-shadow: none; break-inside: avoid; }
+      .metric { min-height: 28mm; padding: 5mm; }
+      .metric strong { font-size: 19pt; }
+      article { padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+      article > section + section { margin-top: 16mm; }
+      h2 { font-size: 25pt; break-after: avoid; }
+      h3 { font-size: 15pt; break-after: avoid; }
+      h4 { break-after: avoid; }
+      .card, .callout, .equation, figure, .table-wrap, .layers, .lineage, .quote {
+        break-inside: avoid;
+      }
+      figure { padding: 4mm; }
+      figure img { max-height: 180mm; }
+      table { font-size: 8.1pt; }
+      th, td { padding: 2.2mm 2.6mm; }
+      .refs { font-size: 8.5pt; }
+      a { color: inherit; }
+      .footer { margin-top: 15mm; }
+    }
+  
+    body {
+      background:
+        radial-gradient(circle at 88% 2%, rgb(207 10 44 / 11%), transparent 30rem),
+        linear-gradient(180deg, #fff 0, #faf7f7 34rem, #f8f5f5 100%);
+    }
+    .hero {
+      background:
+        radial-gradient(circle at 83% 10%, rgb(255 255 255 / 20%), transparent 21rem),
+        radial-gradient(circle at 4% 90%, rgb(255 157 174 / 22%), transparent 27rem),
+        linear-gradient(135deg, #630012 0%, #a90020 47%, #cf0a2c 100%);
+    }
+    .hero h1 span { color: #ffd5dc; }
+    .hero .eyebrow { color: #ffd1d9; }
+    .hero .dek { color: #fff0f3; }
+    .hero-logo { border-radius: 5px; }
+    .hero-logo img { width: 190px; }
+    .side-brand img { width: 166px; }
+    .hero::before {
+      width: 580px;
+      height: 580px;
+      right: -240px;
+      top: -280px;
+      box-shadow: 0 0 0 72px rgb(255 255 255 / 3%), 0 0 0 144px rgb(255 255 255 / 2%);
+    }
+    .metric strong, .kicker, .num { color: #b30024; }
+    .equation { border-left-color: #cf0a2c; }
+    .source-chip {
+      display: inline-flex;
+      margin: 2px 4px 2px 0;
+      padding: 4px 7px;
+      border: 1px solid #ead9dd;
+      border-radius: 999px;
+      background: #fff8f9;
+      color: #8e1830;
+      font: 650 10px/1.2 var(--mono);
+      text-decoration: none;
+    }
+    .model-compare {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 18px 0;
+    }
+    .model-card {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--blue);
+      border-radius: 12px;
+      background: white;
+    }
+    .model-card h4 { margin: 0 0 8px; font-size: 20px; }
+    .model-card strong { display: block; color: #9e001d; font-size: 25px; }
+    .tagline {
+      margin: 0 0 10px;
+      color: #9b6c76;
+      font: 700 10px/1.3 var(--mono);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .stack-visual {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 15px 0;
+    }
+    .stack-visual span {
+      padding: 13px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-align: center;
+      background: #fff8f9;
+      color: #6d2535;
+      font: 700 11px/1.35 var(--mono);
+    }
+    .stack-visual .global { background: #cf0a2c; color: white; border-color: #cf0a2c; }
+    .stack-visual .local { background: #fff0f3; }
+    .stack-visual .system { background: #2a2527; color: white; border-color: #2a2527; }
+    .license-box {
+      border: 1px solid #d9adb6;
+      border-left: 5px solid #cf0a2c;
+      background: #fff8f9;
+    }
+    @media (max-width: 720px) {
+      .model-compare, .stack-visual { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <div class="page">
+    <aside class="sidebar">
+      <a class="side-brand" href="#top"><img src="../../../assets/openpangu-2/huawei-logo.png" alt="Huawei"></a>
+      <div class="edition">openPangu 2.0 report analysis · 2026</div>
+      <span class="toc-label">Contents</span>
+      <nav class="toc" id="toc">
+        <a href="#verdict">00 · 核心判断</a>
+        <a href="#overview">01 · 模型规格与发布口径</a>
+        <a href="#architecture">02 · 总体架构</a>
+        <a href="#attention">03 · MLA + DSA–SWA</a>
+        <a href="#pas-modattn">04 · PAS 与 ModAttn</a>
+        <a href="#moe-mhc">05 · MoE 与 mHC</a>
+        <a href="#mtp-muon">06 · MTP 与 Muon</a>
+        <a href="#pretrain">07 · 数据与预训练</a>
+        <a href="#training-system">08 · 训练系统</a>
+        <a href="#posttrain">09 · 后训练与 OPD</a>
+        <a href="#alignment">10 · 训练—推理一致性</a>
+        <a href="#inference">11 · 昇腾推理系统</a>
+        <a href="#evaluation">12 · 性能与评测</a>
+        <a href="#lineage">13 · 技术谱系</a>
+        <a href="#limitations">14 · 局限与证据边界</a>
+        <a href="#references">15 · 一手资料</a>
+      </nav>
+      <div class="side-note">
+        本文区分“报告明确采用”“基于既有技术的再设计”“结构相近但未确认来源”和“分析推断”。技术相似不自动等于继承关系。
+      </div>
+    </aside>
+
+    <main class="main" id="top">
+      <header class="hero">
+        <div class="hero-inner">
+          <div class="hero-logo"><img src="../../../assets/openpangu-2/huawei-logo.png" alt="Huawei logo"></div>
+          <p class="eyebrow">Technical Report · Architecture · Ascend Systems · Provenance</p>
+          <h1>openPangu 2.0<br><span>架构、训练与昇腾系统全景解读</span></h1>
+          <p class="dek">从 MLA、DSA–SWA、PAS、ModAttn、mHC 与 Muon，到 34T 级预训练、多专家 OPD、Felix CP、Omni Cache 和 W8A8：沿原报告重建 openPangu 2.0 的端到端技术路线。</p>
+          <div class="hero-meta">
+            <span>Pro · 505B / 18B active</span>
+            <span>Flash · 92B / 6B active</span>
+            <span>512K native context</span>
+            <span>论文原图 + 官方配置核对</span>
+          </div>
+          <div class="hero-actions">
+            <a href="https://huggingface.co/openpangu/openPangu-2.0-Pro/blob/main/openPangu-2.0%20Tech%20Report.pdf" target="_blank" rel="noreferrer">查看原技术报告 ↗</a>
+            <a href="#lineage">跳转到技术谱系 ↓</a>
+          </div>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <div class="metric-strip">
+          <div class="metric"><strong>505B / 18B</strong><span>Pro 总参数 / 每 token 激活参数</span></div>
+          <div class="metric"><strong>92B / 6B</strong><span>Flash 总参数 / 每 token 激活参数</span></div>
+          <div class="metric"><strong>≈34.4T</strong><span>三阶段主预训练 token 处理量</span></div>
+          <div class="metric"><strong>524,288</strong><span>两款模型的原生上下文长度</span></div>
+        </div>
+
+        <article>
+          <section id="verdict">
+            <h2><span class="num">00 · Executive reading</span>核心判断：贡献重心在“组合、迁移与昇腾落地”</h2>
+            <p class="lead">openPangu 2.0 并未把主要贡献包装成一种全新的 Transformer 主干。它把 MLA、DSA、SWA、MoE、mHC、MTP、Muon 等已有路线组合为面向 512K 上下文与 Agent 工作负载的模型，再围绕 Ascend NPU 重做长序列训练、MoE 通信、算子融合、量化、缓存和异步调度。模型创新与系统工程必须放在一起解读。</p>
+
+            <div class="grid-4">
+              <div class="card"><span class="kicker">Architecture</span><h4>全局检索 + 局部窗口</h4><p>主体按 DSA–SWA–SWA 重复；PAS 提供可学习 attention sink，ModAttn 用短程因果卷积补充局部归纳偏置。</p></div>
+              <div class="card"><span class="kicker">Training</span><h4>34T 级课程 + 后置稀疏化</h4><p>从 4K 逐步扩到 512K，先训练 FULL–SWA，再用 108B replay 将 FULL 层转换成 DSA。</p></div>
+              <div class="card"><span class="kicker">Post-training</span><h4>四类 RL 专家 + OPD</h4><p>Reasoning、General、Agent、Coding 专家并行优化，最终通过多教师 on-policy distillation 融合到统一模型。</p></div>
+              <div class="card"><span class="kicker">Inference</span><h4>Ascend 全栈共设计</h4><p>Felix CP、W8A8、融合算子、多流、Omni Cache、vLLM V1 异步调度与 MTP full graph 共同支撑部署。</p></div>
+            </div>
+
+            <div class="callout">
+              <strong>一句话总结</strong>
+              openPangu 2.0 最具辨识度的成果，是把稀疏长上下文模型完整落到昇腾训练与推理系统上；最薄弱的披露则是训练卡数与时长、后训练数据量、主模型模块级消融，以及与外部模型或系统的严格同条件对比。
+            </div>
+
+            <h3>证据等级</h3>
+            <div class="evidence-legend">
+              <div class="evidence explicit"><b>明确采用</b>技术报告直接写明 built upon、adopt、following，或官方配置可直接确认。</div>
+              <div class="evidence cited"><b>再设计</b>上游技术明确，但 openPangu 对结构、训练流程或系统实现做了实质改造。</div>
+              <div class="evidence compare"><b>可比较</b>解决相近问题或结构相似，但报告没有确认来源关系。</div>
+              <div class="evidence infer"><b>分析推断</b>由参数、公式或系统约束推得，与作者直接结论分开。</div>
+            </div>
+          </section>
+
+          <section id="overview">
+            <h2><span class="num">01 · Model positioning</span>两款主模型、端侧分支、checkpoint 口径与许可证</h2>
+
+            <div class="model-compare">
+              <div class="model-card">
+                <p class="tagline">Relative positioning · 本文概括</p>
+                <h4>openPangu-2.0-Flash</h4>
+                <strong>92B / 6B active</strong>
+                <p>46 层主干、2 层 Dense + 44 层 MoE；256 个 routed experts，Top-8；面向低延迟和较小部署规模。</p>
+              </div>
+              <div class="model-card">
+                <p class="tagline">Relative positioning · 本文概括</p>
+                <h4>openPangu-2.0-Pro</h4>
+                <strong>505B / 18B active</strong>
+                <p>50 层主干、3 层 Dense + 47 层 MoE；384 个 routed experts，Top-8；面向更强推理与 Agent 能力。</p>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>结构参数</th><th>Flash</th><th>Pro</th></tr></thead>
+                <tbody>
+                  <tr><td>论文口径总参数 / 激活参数</td><td>92B / 6B</td><td>505B / 18B</td></tr>
+                  <tr><td>Hugging Face 完整 checkpoint 自动统计</td><td>100B</td><td>541B</td></tr>
+                  <tr><td>主干层 / Dense / MoE</td><td>46 / 2 / 44</td><td>50 / 3 / 47</td></tr>
+                  <tr><td>hidden size / attention heads</td><td>2,560 / 48</td><td>5,120 / 64</td></tr>
+                  <tr><td>MLA Q rank / KV rank</td><td>1,024 / 512</td><td>1,536 / 512</td></tr>
+                  <tr><td>QK NoPE / RoPE dim；V head dim</td><td>128 / 64；128</td><td>128 / 64；128</td></tr>
+                  <tr><td>Dense FFN intermediate</td><td>9,216</td><td>16,128</td></tr>
+                  <tr><td>routed / shared experts</td><td>256 / 1</td><td>384 / 1</td></tr>
+                  <tr><td>每 token routed Top-k</td><td>8</td><td>8</td></tr>
+                  <tr><td>单 expert intermediate</td><td>1,024</td><td>1,792</td></tr>
+                  <tr><td>DSA indexer heads / head dim / Top-k</td><td>24 / 128 / 2,048</td><td>32 / 128 / 2,048</td></tr>
+                  <tr><td>DSA:SWA / SWA window</td><td>1:2 / 512</td><td>1:2 / 512</td></tr>
+                  <tr><td>PAS / mHC streams / Sinkhorn</td><td>128 / 4 / 20</td><td>128 / 4 / 20</td></tr>
+                  <tr><td>最终 MTP layers</td><td>3</td><td>3</td></tr>
+                  <tr><td>原生上下文 / 最终 RoPE theta</td><td>512K / 6.4M</td><td>512K / 6.4M</td></tr>
+                  <tr><td>架构词表大小</td><td>151,552</td><td>151,552</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout caution">
+              <strong>92B/505B 与 100B/541B 都没有写错</strong>
+              论文和模型卡使用主干模型口径；Hugging Face 对完整发布 checkpoint 的自动统计还包含 3 层 MTP 辅助层。权重索引中 Flash 为 46+3 层，Pro 为 50+3 层，因此差额很可能主要来自 MTP，但官方没有专门解释两个统计口径。
+            </div>
+
+            <p>
+              <a class="source-chip" href="https://huggingface.co/openpangu/openPangu-2.0-Pro" target="_blank" rel="noreferrer">Pro model card</a>
+              <a class="source-chip" href="https://huggingface.co/openpangu/openPangu-2.0-Pro/blob/main/config.json" target="_blank" rel="noreferrer">Pro config</a>
+              <a class="source-chip" href="https://huggingface.co/openpangu/openPangu-2.0-Flash" target="_blank" rel="noreferrer">Flash model card</a>
+              <a class="source-chip" href="https://huggingface.co/openpangu/openPangu-2.0-Flash/blob/main/config.json" target="_blank" rel="noreferrer">Flash config</a>
+            </p>
+
+            <div class="callout license-box">
+              <strong>许可证不是 Apache-2.0</strong>
+              模型权重采用 OpenPangu Model License Agreement 2.0，包含欧盟地域限制、再分发通知、“Powered by openPangu”展示要求及诉讼终止条款；推理源码仓库另以 Apache-2.0 发布。因而可以说“模型权重开放下载”，但不宜把整套权重与代码笼统描述为 Apache-2.0 开源。
+            </div>
+
+            <h3>1.3 报告还列出一款 30B / 2B active 端侧模型</h3>
+            <p>这款 MoE 分支面向资源受限设备，并围绕 Kirin 硬件做量化、剪枝、专家复用与预取。它不是 Pro/Flash 的简单缩小版：系统瓶颈从数据中心的跨卡通信，转成设备内存容量、expert 频繁换入换出和加载停顿。</p>
+            <div class="grid-4">
+              <div class="card"><span class="kicker">Scale</span><h4>30B / 2B active</h4><p>报告只披露总参数与激活参数，没有层数、专家数或上下文配置。</p></div>
+              <div class="card"><span class="kicker">Kirin-aware</span><h4>量化 + 剪枝</h4><p>作者报告推理速度提高 50%、内存占用降低 20%。</p></div>
+              <div class="card"><span class="kicker">Expert reuse</span><h4>相邻 token 复用专家</h4><p>专门的 reuse loss 使 expert switching frequency 降低 50%。</p></div>
+              <div class="card"><span class="kicker">Prediction</span><h4>预测并预取专家</h4><p>提前加载后续 token 可能选择的专家，作者报告吞吐最高提高 5×。</p></div>
+            </div>
+            <div class="callout caution">
+              <strong>这些是作者报告的端侧收益，不是可独立复现的完整 benchmark</strong>
+              报告没有公开具体 Kirin 型号、精度口径、baseline、输入输出长度、并发、功耗、量化位宽或端侧 checkpoint；因此只能保留“作者报告”限定，不能把 50%、20%、5× 外推到任意设备。
+            </div>
+          </section>
+
+          <section id="architecture">
+            <h2><span class="num">02 · Architecture overview</span>主干数据流：四路残差流包住混合注意力与 MoE</h2>
+
+            <figure class="narrow">
+              <img src="../../../assets/openpangu-2/fig-1-architecture.png" alt="openPangu 2.0 architecture">
+              <figcaption><b>原报告 Figure 1，p.3。</b>主体采用 DSA–SWA–SWA 注意力循环；Flash 前 2 层、Pro 前 3 层为 Dense FFN，其余为 MoE；四路 mHC 残差流贯穿主干，尾部附加 3 层 MTP。</figcaption>
+            </figure>
+
+            <div class="flow" aria-label="openPangu 2.0 model flow">
+              <div class="step">Tokens<br>Embedding</div><div class="arrow">→</div>
+              <div class="step">4-way mHC<br>residual state</div><div class="arrow">→</div>
+              <div class="step">DSA / SWA<br>PAS + ModAttn</div><div class="arrow">→</div>
+              <div class="step">Dense / MoE<br>Top-8 experts</div><div class="arrow">→</div>
+              <div class="step">LM head<br>+ MTP-3</div>
+            </div>
+
+            <div class="stack-visual">
+              <span class="global">DSA<br>稀疏全局检索</span>
+              <span class="local">SWA 512<br>局部连续建模</span>
+              <span class="local">SWA 512<br>局部连续建模</span>
+              <span>mHC · 4 streams</span>
+              <span>Shared + routed MoE</span>
+              <span class="system">Ascend system co-design</span>
+            </div>
+
+            <h3>架构的四层含义</h3>
+            <div class="grid-2">
+              <div class="card"><span class="kicker">Attention range</span><h4>全局与局部职责分离</h4><p>约三分之一层承担 DSA 全局检索，其余层只维护 512-token 窗口，降低 indexer、cache scan 与长序列通信的平均成本。</p></div>
+              <div class="card"><span class="kicker">Residual topology</span><h4>信息在四条流之间动态混合</h4><p>mHC 不只是增宽 hidden size；它在残差状态层面保留四路表示，再通过受约束矩阵读取、写回和混合。</p></div>
+              <div class="card"><span class="kicker">Conditional compute</span><h4>绝大多数层采用 MoE</h4><p>每个 token 只激活 8 个 routed experts 与 1 个 shared expert，以激活参数显著小于总参数的方式扩展容量。</p></div>
+              <div class="card"><span class="kicker">Self speculation</span><h4>MTP 既是训练目标也是推理草稿器</h4><p>训练后期使用 3 个 MTP 层，一次额外预测三个位置；推理系统进一步为 MTP-3 做 full-graph 和异步调度。</p></div>
+            </div>
+          </section>
+
+          <section id="attention">
+            <h2><span class="num">03 · Hybrid attention</span>MLA + DSA–SWA：让少数层找远处，多数层看近处</h2>
+
+            <p>openPangu 的注意力底座明确建立在 <a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noreferrer">Multi-head Latent Attention（MLA）</a> 上：Q 与 KV 先压缩到低秩 latent，再上投影为多头注意力需要的表示。这里不能把 <code>num_attention_heads</code> 误读成普通 GQA 的 Q-head/KV-head 数量；KV 的压缩由 latent rank 表达。</p>
+
+            <h3>3.1 SWA：512-token 的局部工作马</h3>
+            <p>Sliding-Window Attention 对真实历史 token 只读取最近 512 个，同时仍可访问固定的 128 对 PAS，负责局部语法、短程实体关系与连续状态更新。对单个 decode query，真实 token 的 cache read 和 attention compute 不随历史长度增长；但处理整段长度为 <code>S</code> 的 prefill 仍需 <code>O(S·512)=O(S)</code> 的总工作量。</p>
+
+            <h3>3.2 DSA：Lightning Indexer 先选 2,048 个历史 token</h3>
+            <p>DSA 先用轻量 indexer 为历史 token 打分，再从因果可见历史中选 Top-k，随后只对这些 token 做稀疏注意力。论文正文使用“例如 K=2,048”的措辞，而官方 Pro/Flash 配置均确认 <code>index_topk=2048</code>；因此该值可作为发布 checkpoint 的实际配置，而不是仅凭论文例子推断。</p>
+
+            <div class="equation">
+              LI score → causal TopK<sub>2,048</sub> → sparse MLA attention
+            </div>
+
+            <h3>3.3 为什么不是每层都用 DSA</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>长上下文主导项</th><th>纯 DSA</th><th>FULL–SWA</th><th>DSA–SWA</th></tr></thead>
+                <tbody>
+                  <tr><td>Prefill 二次项系数</td><td>每层都跑 indexer</td><td>约 1/3 层 full attention</td><td>约 1/3 层跑 indexer</td></tr>
+                  <tr><td>Decode cache read 线性项</td><td>每层读 indexer cache</td><td>约 1/3 层读 full KV</td><td>约 1/3 层读 indexer cache</td></tr>
+                  <tr><td>Cache memory 线性项</td><td>KV + indexer</td><td>约 1/3 full KV</td><td>约 1/3 (KV + indexer)</td></tr>
+                  <tr><td>局部层成本</td><td>仍需全局选择</td><td>SWA 固定窗口</td><td>SWA 固定窗口</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>关键不是“稀疏注意力天然便宜”，而是 DSA 的 indexer 自身仍随历史长度工作。把 DSA 只放到周期性全局层，可以把全局检索成本摊薄到约三分之一层。</p>
+
+            <h3>3.4 后置稀疏化：先学好 FULL，再迁移到 DSA</h3>
+            <div class="flow">
+              <div class="step">FULL–SWA<br>主预训练</div><div class="arrow">→</div>
+              <div class="step">8B replay<br>dense warm-up<br>LR 1e-3</div><div class="arrow">→</div>
+              <div class="step">100B replay<br>sparse adaptation<br>LR 8e-6</div><div class="arrow">→</div>
+              <div class="step">DSA–SWA<br>发布模型</div>
+            </div>
+            <p>只有原 FULL 层被替换成 DSA，SWA 层保持不变；Lightning Indexer 通过权重 0.1 的辅助目标拟合原 full-attention score。作者称 100B adaptation 后“mostly recovers”下游性能，但未提供 92B/505B 主模型的完整恢复曲线，因此不应写成无损迁移已经被充分证明。</p>
+          </section>
+
+          <section id="pas-modattn">
+            <h2><span class="num">04 · Local inductive bias</span>PAS 与 ModAttn：为混合注意力补上“无处可看”和短程顺序</h2>
+
+            <h3>4.1 PAS：把 attention sink 显式参数化</h3>
+            <p>每层增加 128 对可训练 latent K/V。它们不代表真实 token，而是为注意力提供稳定的“空操作”出口：当某个 query 没有值得关注的内容时，模型可以把 attention mass 分配给 PAS，而不是迫使序列开头或窗口内某个真实 token 充当 sink。</p>
+
+            <div class="grid-2">
+              <figure>
+                <img src="../../../assets/openpangu-2/fig-9-pas-gradnorm.png" alt="PAS gradient norm comparison">
+                <figcaption><b>Figure 9，p.40。</b>15B 代理模型、250B tokens；PAS 使 gradient-norm spike 更少。</figcaption>
+              </figure>
+              <figure>
+                <img src="../../../assets/openpangu-2/fig-10-pas-loss.png" alt="PAS loss comparison">
+                <figcaption><b>Figure 10，p.40。</b>FULL:SWA=1:2 代理模型中，PAS 的 loss 低于无 sink 与论文实现的 gpt-oss sink。</figcaption>
+              </figure>
+            </div>
+
+            <div class="callout caution">
+              <strong>消融边界</strong>
+              PAS 的主要曲线来自 MoE15B-A2B，而非 92B/505B 主模型；对纯 full-attention baseline，PAS 没有显示明显 loss 收益。它的价值与混合 SWA 场景密切相关。
+            </div>
+
+            <h3>4.2 ModAttn：在压缩分支和注意力输出上做深度因果卷积</h3>
+            <div class="equation">
+              Mod<sub>theta</sub>(Z) = Z + CausalConv1D<sub>theta</sub>(Z)
+            </div>
+            <p>该模块分别用于 MLA 的 compressed-Q 分支、compressed-KV 分支，以及 FlashAttention 聚合后、output projection 前。卷积为 depthwise causal Conv1D，<code>groups=H</code>、<code>kernel=3</code>，只引入极短程状态，却能为 DSA 的远程稀疏检索和 SWA 的固定窗口补充稳定的相邻 token 归纳偏置。</p>
+
+            <figure class="narrow">
+              <img src="../../../assets/openpangu-2/fig-4-modattn.png" alt="ModAttn communication and convolution">
+              <figcaption><b>Figure 4，p.13。</b>Sequence/Context Parallel 下只交换跨 rank 卷积边界，避免恢复完整相邻分区；Vector 核上的 rolling-state kernel 使模块计算时间降低 79%。</figcaption>
+            </figure>
+
+            <div class="callout">
+              <strong>与 Mamba 的关系</strong>
+              报告把缓存语义称为“Mamba-like”，并指出 cache 方案可推广到 Gated DeltaNet；这说明状态组织相近，不足以证明 ModAttn 直接来源于 Mamba 或线性注意力。更稳妥的说法是：ModAttn 是报告定义的短程因果卷积组件。
+            </div>
+          </section>
+
+          <section id="moe-mhc">
+            <h2><span class="num">05 · Conditional capacity & topology</span>MoE 与 mHC：扩容量，同时约束四路残差传播</h2>
+
+            <h3>5.1 Shared + routed experts</h3>
+            <p>除 Flash 开头 2 个、Pro 开头 3 个 Dense FFN 层外，主干其余层均为 MoE。每个 token 始终经过一个 shared expert，同时从 256/384 个 routed experts 中激活 8 个。该结构与 DeepSeekMoE 路线高度相近，但报告在 MoE 结构处没有足够明确的“继承 DeepSeekMoE”声明，因此技术谱系中应标为结构相近，而非确定直接来源。</p>
+
+            <h3>5.2 自适应 auxiliary-loss-free bias</h3>
+            <div class="equation">
+              b<sub>i</sub> ← b<sub>i</sub> - gamma · (F<sub>i</sub> - Q<sub>i</sub>) / RMS(F - Q)
+            </div>
+            <div class="equation">
+              RMS(F - Q) = sqrt[(1 / N<sub>r</sub>) · sum<sub>j</sub>(F<sub>j</sub> - Q<sub>j</sub>)<sup>2</sup>]
+            </div>
+            <p><code>Q_i=1/N_r</code> 是目标负载，<code>F_i</code> 是 global batch 中实际专家负载。相较原 sign update，RMS 归一化保留了过载幅度的相对大小。bias update LR 为 <code>1e-3</code>；另有权重 <code>2e-4</code> 的 EP-group auxiliary loss 和 <code>1e-6</code> 的 router z-loss。这些稳定项只在 General 阶段启用。</p>
+
+            <figure class="narrow">
+              <img src="../../../assets/openpangu-2/fig-11-load-balance.png" alt="Adaptive auxiliary-loss-free routing comparison">
+              <figcaption><b>Figure 11，p.41。</b>两种方法的 LM loss 接近，但 RMS-normalized update 得到更低的 batch-level MaxVio。</figcaption>
+            </figure>
+
+            <h3>5.3 mHC：四条残差流的读取、写回与受约束混合</h3>
+            <div class="equation">
+              x_bar = RMSNorm(h_bar)
+            </div>
+            <div class="equation">
+              [r<sub>pre</sub>, r<sub>post</sub>, r<sub>res</sub>] = x_bar W<sub>mHC</sub>
+            </div>
+            <div class="equation">
+              H<sub>pre</sub> = sigmoid(r<sub>pre</sub>)；H<sub>post</sub> = 2 sigmoid(r<sub>post</sub>)；H<sub>res</sub> = Sinkhorn(reshape(r<sub>res</sub>, 4, 4))
+            </div>
+            <p><code>H_pre</code> 决定子层从哪几条流读；<code>H_post</code> 决定输出写回哪几条流；<code>H_res</code> 在残差路径上做跨流混合，并经 20 轮 Sinkhorn-Knopp 投影到近似双随机矩阵集合。它的目的不是让 residual 任意放大，而是提升表示多样性的同时控制深层传播。</p>
+
+            <h3>5.4 openPangu 对原 mHC 的稳定性修正</h3>
+            <ul>
+              <li>在子层输出写回 <code>H_post</code> 之前加入 sandwich normalization；</li>
+              <li>第一层之后以及每隔五层，对多流主干做 block-level post-normalization；</li>
+              <li>针对浅层 <code>H_pre/H_post</code> 同时趋近 0 的 gate collapse 做专门修复。</li>
+            </ul>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>MoE15B-A2B，1T tokens</th><th>MMLU</th><th>CEval</th><th>BigBench</th><th>MATH</th><th>MBPP+</th><th>平均</th></tr></thead>
+                <tbody>
+                  <tr><td>baseline</td><td>.765</td><td>.708</td><td>.591</td><td>.459</td><td>.532</td><td>.594</td></tr>
+                  <tr><td>mHC</td><td>.799</td><td>.743</td><td>.622</td><td>.472</td><td>.553</td><td>.615</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>平均提高 0.021，但这是 15B 代理模型的消融；不能据此精确拆分 mHC 对 92B/505B 最终成绩的贡献。</p>
+          </section>
+
+          <section id="mtp-muon">
+            <h2><span class="num">06 · Prediction & optimization</span>MTP 与 Muon：训练目标、投机草稿器和矩阵正交化</h2>
+
+            <h3>6.1 三层 MTP 的阶段调度</h3>
+            <div class="equation">
+              L = L<sub>main</sub> + sum<sub>k=1..D</sub> lambda<sub>k</sub> L<sub>MTP</sub><sup>(k)</sup>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>阶段</th><th>上下文</th><th>MTP 层数</th><th>loss 权重</th></tr></thead>
+                <tbody>
+                  <tr><td>General</td><td>4K</td><td>1</td><td>0.3</td></tr>
+                  <tr><td>Reasoning</td><td>8K</td><td>1</td><td>0.1</td></tr>
+                  <tr><td>Annealing</td><td>32K / 128K / 512K</td><td>3</td><td>每层 0.1，合计 0.3</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>所有 MTP 内部注意力均为 window=2,048 的 SWA。训练后期逐步增加 MTP 深度，使最终 checkpoint 可作为三层 self-speculative drafter；但论文未披露主模型的接受率、每轮平均接受 token 数或 MTP 单独带来的吞吐收益。</p>
+
+            <h3>6.2 Muon + AdamW 混合优化</h3>
+            <div class="grid-2">
+              <div class="card"><span class="kicker">Muon</span><h4>二维及更高维矩阵</h4><p>momentum 0.95、Nesterov；Newton–Schulz 固定 5 轮；update 乘 gamma=0.2。MLA Q/KV up-projection 按 attention head 分成四组再正交化。</p></div>
+              <div class="card"><span class="kicker">AdamW</span><h4>向量与敏感参数</h4><p>embedding、prediction head、PAS、RMSNorm、mHC gate coefficient 等使用 AdamW；beta=(0.9,0.95)，epsilon=1e-8。</p></div>
+            </div>
+            <p>论文称 Muon 只维护一阶 momentum，因此 optimizer state memory 相比 AdamW 减半。全局 weight decay 为 0.1，但 embedding 与 RMSNorm 不衰减。</p>
+
+            <figure class="narrow">
+              <img src="../../../assets/openpangu-2/fig-12-muon-logits.png" alt="Attention logits stability with Muon">
+              <figcaption><b>Figure 12，p.42。</b>Pro 全训练期间最大 attention logits 大致稳定在 20 附近。作者推测 sandwich norm 与 block post-norm 有帮助，但明确承认尚缺系统消融。</figcaption>
+            </figure>
+
+            <div class="callout caution">
+              <strong>不要把经验解释写成因果结论</strong>
+              图中只证明 openPangu-2.0-Pro 在该训练配置下没有出现 QK logit explosion，不能独立证明是某一个 normalization 模块造成的。
+            </div>
+          </section>
+
+          <section id="pretrain">
+            <h2><span class="num">07 · Pre-training</span>34T 级数据课程：4K → 8K → 32K → 128K → 512K</h2>
+
+            <div class="flow">
+              <div class="step">General<br>25T @ 4K</div><div class="arrow">→</div>
+              <div class="step">Reasoning<br>8T @ 8K</div><div class="arrow">→</div>
+              <div class="step">Annealing<br>0.8T @ 32K</div><div class="arrow">→</div>
+              <div class="step">0.4T @ 128K<br>0.2T @ 512K</div>
+            </div>
+
+            <h3>7.1 数据构成</h3>
+            <p>公开类别包括网页、图书、PDF、多语言文本、代码仓库、STEM、行业数据、agentic tasks 和 synthetic data。数据工程同时使用规则过滤与模型评估，为文档打 quality、difficulty、topic、educational value 标签，并对含长尾知识但格式较差的文本做语义保留式重写。</p>
+            <p>论文没有给出各类别或语言比例、去重率、污染检查、合成数据占比、具体数据集名单和版权分布。因而“34T”主要是 token 处理规模，不等于可审计的唯一语料量。</p>
+
+            <h3>7.2 学习率、batch 与长度课程</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>阶段</th><th>长度与 token</th><th>Flash</th><th>Pro</th><th>RoPE base</th></tr></thead>
+                <tbody>
+                  <tr><td>General</td><td>25T @ 4K</td><td>batch→36M；peak LR 3e-4</td><td>batch→64M；peak LR 2e-4</td><td>10K</td></tr>
+                  <tr><td>Reasoning</td><td>8T @ 8K</td><td colspan="2">LR 1e-4 → 3e-5；增加 STEM 与代码</td><td>100K</td></tr>
+                  <tr><td>Annealing-1</td><td>800B @ 32K</td><td colspan="2">LR 从 3e-5 开始继续 cosine</td><td>400K</td></tr>
+                  <tr><td>Annealing-2</td><td>400B @ 128K</td><td colspan="2">长文档和复杂 Agent trajectory</td><td>1.6M</td></tr>
+                  <tr><td>Annealing-3</td><td>200B @ 512K</td><td colspan="2">最终 LR 8e-6</td><td>6.4M</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout caution">
+              <strong>三个论文内部口径需要保留</strong>
+              三阶段相加为 34.4T，而摘要写“roughly 34T”；General 段落的“500B warm-up + next 17T plateau + final 8T decay”按字面是 25.5T，与 25T 阶段总量不一致；Tokenizer Table 4 为 149,600，而架构与官方 config 为 151,552，差出的 1,952 个 token 未解释。
+            </div>
+
+            <h3>7.3 Tokenizer：牺牲少量压缩率，换取规则的数字表示</h3>
+            <p>Tokenizer 由中文、英文、代码、行业文档和 188 种低资源语言的重平衡混合重新训练。报告比较两种数字预切分：3-digit 以三位数字为组，压缩率更好；single-digit 把连续阿拉伯数字逐位切分，数字模式更规则。最终采用 single-digit，以服务数值推理、多模态坐标和工具参数，代价是平均字符/token 从 3-digit 的 2.71 降到 2.59。</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Tokenizer</th><th>Vocab</th><th>中文</th><th>英文</th><th>多语言</th><th>代码</th><th>行业</th><th>平均字符/token</th></tr></thead>
+                <tbody>
+                  <tr><td>openPangu-1.0</td><td>153,376</td><td>3.82</td><td>4.30</td><td>2.80</td><td>2.80</td><td>4.18</td><td>2.56</td></tr>
+                  <tr><td>2.0 · 3-digit</td><td>150,400</td><td>4.04</td><td>4.27</td><td>3.37</td><td>2.77</td><td>4.51</td><td>2.71</td></tr>
+                  <tr><td>2.0 · single-digit（最终）</td><td>149,600</td><td>3.82</td><td>4.15</td><td>3.32</td><td>2.56</td><td>4.27</td><td>2.59</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Table 4 的 tokenizer vocab 是 149,600，而模型架构表与公开 config 是 151,552；两者差 1,952，报告没有解释是否来自特殊 token、padding 或发布配置扩展。</p>
+
+            <h3>7.4 训练算力没有披露</h3>
+            <p>报告确认基于 Ascend NPU 训练，并按 CloudMatrix 384 supernode 拓扑做 TP/CP/EP 亲和分组；但没有给出实际 NPU 总数、使用多少个超节点、训练天数、NPU-hours、总 FLOPs、MFU、吞吐、成本或能耗。“CloudMatrix 384”是产品/拓扑名称，不能被解释为“使用了 384 张卡训练”。</p>
+          </section>
+
+          <section id="training-system">
+            <h2><span class="num">08 · Training systems</span>长上下文、Muon、MTP 与 ModAttn 的系统协同</h2>
+
+            <h3>8.1 512K Context Parallelism</h3>
+            <p>FULL 阶段使用 Ulysses + KV CP 的 Hybrid CP；DSA 阶段默认 KV CP。对 SWA，系统把全局 AllGather 改成相邻 rank P2P，通信量由与序列长度相关的 <code>S·B·H</code> 降到窗口相关的 <code>W·B·H</code>。对 FULL/DSA，只交换同一 packed sub-sequence 的因果历史 KV，并以 AllToAllV 替代 AllGather。</p>
+
+            <figure>
+              <img src="../../../assets/openpangu-2/fig-2-context-parallel.png" alt="Context parallel AllToAllV">
+              <figcaption><b>Figure 2，p.11。</b>CP=4 时，rank 只接收本地 query 真正需要的同一文档历史 K/V，避免把其他 packed sequence 的冗余 KV 全部复制过来。</figcaption>
+            </figure>
+
+            <h3>8.2 FA Rescale：在没有原生 PAS kernel 时精确合并两次 attention</h3>
+            <div class="equation">
+              O(A+B) = O(A) alpha<sub>A</sub> + O(B) alpha<sub>B</sub>
+            </div>
+            <div class="equation">
+              alpha<sub>X</sub> = l<sub>X</sub> exp(m<sub>X</sub>-m*) / [l<sub>A</sub> exp(m<sub>A</sub>-m*) + l<sub>B</sub> exp(m<sub>B</sub>-m*)]
+            </div>
+            <p>两次 FlashAttention 分别处理真实序列和 PAS，利用 softmax max/sum 统计在 FP32 中合并。数学上等价于一次全局 softmax，差异只来自最终 BF16 rounding；DSA 的 KL 辅助目标还能只观察不含 sink 的主序列统计。</p>
+
+            <h3>8.3 HyperParallel Muon+</h3>
+            <p>在 DDP bucket ZeRO 下，系统根据 bucket/参数边界选择 AllGather 或 AllToAllV，并把 DP 拆成 <code>DPouter × DPinner</code>：outer 做跨 hyperplane 对称 AllGather，inner 控制 AllToAllV 范围。bucket i 的通信与 bucket i-1 的 Newton–Schulz 正交化和参数更新重叠。</p>
+
+            <figure class="narrow">
+              <img src="../../../assets/openpangu-2/fig-3-muon-overlap.png" alt="Muon communication computation overlap">
+              <figcaption><b>Figure 3，p.12。</b>只有首个 bucket 的通信和最后一个 bucket 的计算无法遮蔽。报告说其两级通信思想参考了 DeepEP，但这不等于直接使用 DeepEP 框架。</figcaption>
+            </figure>
+
+            <h3>8.4 mHC 与 MTP 的流水线优化</h3>
+            <ul>
+              <li>无 PP 时做 intra-layer recomputation；PP+VPP 时跨层递归恢复，仅保留必要 activation。</li>
+              <li>PP 边界只传 mHC-expanded backbone hidden state，而不额外发送三个 MTP auxiliary payload；MTP state 到目标 stage 后本地展开。</li>
+              <li>最终 3 层 MTP 由 4 条跨 stage stream 降到 1 条，相关 P2P 下降 75%。</li>
+              <li>MTP layers 分散到 PP/VPP stages；projection/loss 按 sequence chunk 即时 forward-backward。</li>
+              <li>相较 unbalanced MTP layout，作者报告训练吞吐提高约 20%。</li>
+            </ul>
+
+            <h3>8.5 ModAttn kernel</h3>
+            <p>跨 rank 只交换卷积边界；反向时从 attention output 重建 padding，避免缓存 padded tensor；因果卷积从 Cube 改到 Vector 核，以 rolling state 把三个局部状态保存在寄存器中。作者报告该模块计算时间降低 79%，这是模块级 latency，不是端到端训练提速。</p>
+          </section>
+
+          <section id="posttrain">
+            <h2><span class="num">09 · Post-training</span>512K SFT、四类 RL 专家与多教师 OPD</h2>
+
+            <h3>9.1 统一 SFT</h3>
+            <p>SFT 上下文直接设为 512K，同时混合 thinking 与 non-thinking 数据。四类数据覆盖 Reasoning、General Chat、Coding 和 Long-Trajectory Agent；Agent 轨迹来自真实 HarmonyOS 与模拟 sandbox，错误步骤由环境反馈与 reward model 定位并在训练时 mask。</p>
+
+            <h3>9.2 四个并行 GRPO 专家</h3>
+            <div class="grid-4">
+              <div class="card"><span class="kicker">Reasoning RL</span><h4>数学、科学与工具</h4><p>LLM quality filter、标签平衡，并对 Jupyter/Python parse error 施加惩罚。</p></div>
+              <div class="card"><span class="kicker">General RL</span><h4>通用对话</h4><p>指令遵循、事实、长上下文、多轮交互；规则 reward 与 generative reward model 结合。</p></div>
+              <div class="card"><span class="kicker">Agentic RL</span><h4>长轨迹环境</h4><p>TITO、动态移除持续解出的样本、工具语法惩罚、环境外确定性验证，从 General RL checkpoint warm start。</p></div>
+              <div class="card"><span class="kicker">Code RL</span><h4>真实执行反馈</h4><p>gateway 捕获 prompt/completion/logprob，重建完整 trajectory；monitor agent 在线监控 reward hacking。</p></div>
+            </div>
+            <p>四类专家均采用 GRPO，且不使用 KL regularization。报告没有披露各专家的 episode/token 数、batch、训练步数、奖励权重、NPU 规模与时长。</p>
+
+            <h3>9.3 Multi-expert On-Policy Distillation</h3>
+            <div class="equation">
+              A<sub>i,t</sub> = stopgrad[ log pi<sub>expert</sub><sup>train</sup>(y<sub>i,t</sub>|x,y&lt;t) - log pi<sub>student</sub><sup>train</sup>(y<sub>i,t</sub>|x,y&lt;t) ]
+            </div>
+            <div class="flow">
+              <div class="step">当前 policy<br>on-policy rollout</div><div class="arrow">→</div>
+              <div class="step">按领域选择<br>RL expert</div><div class="arrow">→</div>
+              <div class="step">对已生成 token<br>计算 log-prob gap</div><div class="arrow">→</div>
+              <div class="step">mask / clip<br>更新统一 policy</div>
+            </div>
+            <p>优势不再来自独立 reward，而来自领域 expert 与当前 policy 对实际生成 token 的概率差。近零优势 token 被 mask，极端 ratio 被 clip；多个教师不同时常驻，而是在共享 NPU pool 上顺序加载、分组打分。当前 expert probability 来自 training-engine forward，不是 inference backend。</p>
+          </section>
+
+          <section id="alignment">
+            <h2><span class="num">10 · Train–infer consistency</span>当前缓解方案与“Full Alignment”预览必须分开</h2>
+
+            <h3>10.1 当前 openPangu 2.0 使用的缓解</h3>
+            <ul>
+              <li>训练从 BF16 改为 FP16，并使用 dynamic loss scaling；</li>
+              <li>KPop 替代大部分 IcePop / 普通 rejection sampling；</li>
+              <li>根据 train–rollout PCC 使用更严格或更宽松的 token mask；</li>
+              <li>R3 记录 rollout 时实际使用的 MoE routing，在训练端重放；</li>
+              <li>Masked R3 只对训练/推理专家重合足够高的 token replay；Cached R3 为多轮 Agent 保存首次生成时的 route record。</li>
+            </ul>
+
+            <h3>10.2 三类 mismatch</h3>
+            <div class="grid-3">
+              <div class="card"><span class="kicker">A · Definition</span><h4>模型定义不同</h4><p>训练与推理侧算子、精度或状态定义不一致。</p></div>
+              <div class="card"><span class="kicker">B · Graph</span><h4>计算图重排</h4><p>融合、并行分块和归约顺序改变数值路径。</p></div>
+              <div class="card"><span class="kicker">C · Scheduling</span><h4>硬件 tiling 非确定性</h4><p>SplitK、聚合顺序、batch/shape 变化带来数值漂移。</p></div>
+            </div>
+
+            <figure>
+              <img src="../../../assets/openpangu-2/fig-13-14-alignment.png" alt="Training inference full alignment preview">
+              <figcaption><b>Figure 13–14，p.43。</b>Phase I 用 tensor hook 和统一 FlashAttention 逐层定位差异；Phase II 构造单步 decode 输入并修改 CANN SplitK、聚合顺序与 tiling，再重新编译验证。</figcaption>
+            </figure>
+
+            <div class="callout caution">
+              <strong>这是未来版本的技术预览</strong>
+              Introduction 明确把 full-alignment solution 放在 later model iterations，正文标题也使用 Preview。它不能被写成 openPangu 2.0 当前全部训练与 rollout 已经实现 bit-level 全栈对齐。
+            </div>
+          </section>
+
+          <section id="inference">
+            <h2><span class="num">11 · Ascend inference</span>并行、量化、融合、多级缓存与异步调度</h2>
+
+            <h3>11.1 官方部署栈与两种拓扑</h3>
+            <p>一手资料确认的路径是 Ascend 910C/A3 上的 <a href="https://gitcode.com/ascend-tribe/openPangu-2.0-Infer" target="_blank" rel="noreferrer">omni-infer</a>，结合 AscendC、CANN、HCCL、ACL Graph、<code>npugraph_ex</code>、<code>omni-npu</code>、<code>omni-ops</code>，并扩展 vLLM V1 的异步调度与混合 KV cache。</p>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>部署形态</th><th>Prefill</th><th>Decode</th><th>公开参考拓扑</th></tr></thead>
+                <tbody>
+                  <tr><td>Ultra-low latency</td><td>PD-mix；SWA 用 TP、MoE 用 EP、DSA 用 CP</td><td>SWA 保持 TP、MoE 保持 EP；DSA 用 redundant weights 切到 TP</td><td>A3 单节点 latency 测试</td></tr>
+                  <tr><td>Low latency / high throughput</td><td>PD-disaggregated；prefill topology 与 ultra-low 的 prefill 完全相同</td><td>Attention DP + MoE EP</td><td>Flash 1P1D / 2 nodes；Pro 2P1D / 8 nodes</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Pro 官方 2P1D <a href="https://gitcode.com/ascend-tribe/openPangu-2.0-Infer/blob/main/tools/ansible/505B/omni_infer_inventory_used_for_2P1D.yml" target="_blank" rel="noreferrer">inventory</a> 横跨 8 台主机、每台暴露 NPU 0–15，即 128 个可见 device；这是从参考拓扑推得的可见设备数，不是理论最低硬件门槛。HF 模型仓库也未提供普通 Transformers 单机 quickstart，目前没有一手证据支持通用 GPU/vLLM/SGLang 即插即用。</p>
+
+            <h3>11.2 W8A8：不是全模型 INT8</h3>
+            <p>权重采用 static symmetric per-output-channel INT8，激活采用 dynamic per-token INT8。对 SmoothQuant 的输入/输出平滑指数分别做二维搜索，并对 up projection 的输入/输出 smoothing 交替优化。</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>量化为 INT8/INT8</th><th>保留 BF16/BF16</th><th>原因</th></tr></thead>
+                <tbody>
+                  <tr><td>MLA o_proj、q_b_proj</td><td>kv_b、q_a、kv_a</td><td>小矩阵收益有限或对残差/双向使用敏感</td></tr>
+                  <tr><td>Dense MLP gate/up/down</td><td>Lightning Indexer 全部投影</td><td>TopK 前的微小误差可能改变离散选择</td></tr>
+                  <tr><td>Routed expert gate/up/down</td><td>shared expert、router gate</td><td>共享路径和路由对误差更敏感</td></tr>
+                  <tr><td>—</td><td>embedding、LM head、mHC</td><td>输出质量与残差累计</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>论文分析口径中 Pro 权重约从 1009GB 降到 517GB，1.95×；HF 完整 INT8 仓库约 551GB。两者分别是模型权重分析与发布包体积，不能混作同一口径。</p>
+            <p>
+              <a class="source-chip" href="https://huggingface.co/openpangu/openPangu-2.0-Pro-Int8" target="_blank" rel="noreferrer">Pro INT8 checkpoint</a>
+              <a class="source-chip" href="https://huggingface.co/openpangu/openPangu-2.0-Pro-Int8/blob/main/config.json" target="_blank" rel="noreferrer">w8a8_dynamic config</a>
+              <a class="source-chip" href="https://huggingface.co/api/models/openpangu/openPangu-2.0-Pro-Int8" target="_blank" rel="noreferrer">HF storage metadata</a>
+              <a class="source-chip" href="https://gitcode.com/ascend-tribe/openPangu-2.0-Infer/blob/main/README_EN.md" target="_blank" rel="noreferrer">BF16 deployment README</a>
+              <a class="source-chip" href="https://gitcode.com/ascend-tribe/openPangu-2.0-Infer/blob/main/README_INT8_EN.md" target="_blank" rel="noreferrer">INT8 deployment README</a>
+            </p>
+
+            <h3>11.3 融合算子、MoE 通信与 Graph</h3>
+            <div class="grid-2">
+              <div class="card"><span class="kicker">mHC</span><h4>关键路径拆分</h4><p>融合上一层 merge、RMSNorm 与 Hpre；Hpost/Hres 放低优先级侧流，Sinkhorn 可独立重叠。</p></div>
+              <div class="card"><span class="kicker">SWA / PAS</span><h4>L1 micro-tile</h4><p>无效 tile 在搬入 L0 前跳过，PAS 常驻 L1；作者报告 SWA operator 提升 30%–40%。</p></div>
+              <div class="card"><span class="kicker">MoE dispatch</span><h4>Non-BSP + token-centric</h4><p>AtomicAdd 顺序化减少 barrier；每 token 只读取和量化一次，再发送给 Top-k experts。</p></div>
+              <div class="card"><span class="kicker">ACL Graph</span><h4>静态编译 + Superkernel</h4><p>static compilation 改善 TPOT 1.2ms，Superkernel 再改善 2ms，合计约 3.2ms。</p></div>
+            </div>
+            <p>不同数字的分母并不相同：有 operator latency、dispatch latency、module time、TPOT 和端到端 latency，不能把 79%、40%、30%、20%、5% 直接相加。</p>
+
+            <h3>11.4 Felix CP：不同注意力层使用不同并行</h3>
+            <figure>
+              <img src="../../../assets/openpangu-2/fig-5-felix-cp.png" alt="Felix CP">
+              <figcaption><b>Figure 5，p.24。</b>DSA 用 absorbed-weight + CP；SWA 用 non-absorbed mode + TP；ModAttn 在其间做 sequence-parallel 状态转换与 cache 更新。</figcaption>
+            </figure>
+            <p>DSA 只交换本 rank query 需要的 KV cache；SWA 在低维 ModAttn 后再 AllGather，并把 attention output 用 All2All 转回 SP。论文声称这是首个支持 APC 的开源 Mamba-like SP 实现，该“first”应保留作者限定。</p>
+
+            <h3>11.5 Omni Cache：DRAM 保存历史，HBM 只放当前 buffer</h3>
+            <figure>
+              <img src="../../../assets/openpangu-2/fig-6-omni-cache.png" alt="Omni Cache layout">
+              <figcaption><b>Figure 6，p.25。</b>历史 KV 主体驻留 host DRAM；HBM 只保留当前 attention 使用的 KV buffer，prefill 还可跨层复用一个 layer-shared buffer。</figcaption>
+            </figure>
+            <p>D2H scatter 与 H2D gather 和每层计算重叠。作者报告 native KV space 超过 10×、APC hit rate 3×、prefill max-batch-tokens 4×，并可在单个 A3 node 上继续支持 512K；但没有给绝对命中率、DRAM 带宽需求或传输无法完全隐藏时的退化曲线。</p>
+
+            <h3>11.6 Hybrid page、异步调度与 Multi-MTP full graph</h3>
+            <ul>
+              <li>DSA、SWA/MLA、ModAttn/Mamba-like cache 使用异构页面，并用统一 padded physical page + <code>torch.as_strided</code> 视图管理。</li>
+              <li>扩展 vLLM Single BlockPool、MambaSpec、prefix-cache negotiation 和 hybrid KV manager。</li>
+              <li>sampling/draft token 走独立 async copy stream；CPU tiling 下放 AICPU；DP batch coordination 改为 AICPU 上的 HCCL ProcessGroup。</li>
+              <li>启用 MTP-3 后，即使某次执行仅包含 1–3 个 token，也强制进入 static full graph；draft/target 统一 shape，减少额外 DP 同步。</li>
+            </ul>
+
+            <h3>11.7 LoPT：基于原文字符位置的无损并行 tokenization</h3>
+            <figure class="narrow">
+              <img src="../../../assets/openpangu-2/fig-15-lopt.png" alt="LoPT tokenization">
+              <figcaption><b>Figure 15，p.45。</b>长文本重叠切块、多进程 tokenization，再依据 token 对应的原文字符起止位置合并；边界匹配失败时动态扩大 chunk。</figcaption>
+            </figure>
+            <p>作者报告与串行 tokenizer 100% 一致，16-core CPU 提速 3–5×，overlap overhead 低于 5%。这里讨论的是 tokenization 到 1M 的系统能力，不代表模型原生上下文从 512K 升级为 1M。</p>
+          </section>
+
+          <section id="evaluation">
+            <h2><span class="num">12 · Evaluation</span>速度、能力与证据边界分别看</h2>
+
+            <h3>12.1 理论长上下文收益不是端到端加速</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>相对 full-attention MLA</th><th>Hybrid DSA–SWA 理论系数</th><th>含义</th></tr></thead>
+                <tbody>
+                  <tr><td>Prefill 二次 attention FLOPs</td><td>约 1/15</td><td>只比较二次主导项，包含约三分之一层运行 Lightning Indexer 的二次成本；不代表端到端提速，也未计 core sparse attention、KV gather、projection、通信和 batching</td></tr>
+                  <tr><td>KV cache growth</td><td>约 40.7%</td><td>8-bit hybrid 对 16-bit full 理想口径约 20.4%</td></tr>
+                  <tr><td>Decode length-dependent cache scan</td><td>约 7.4%</td><td>8-bit 对 16-bit 理想口径约 3.7%</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>12.2 Ascend 实测</h3>
+            <figure>
+              <img src="../../../assets/openpangu-2/fig-7-8-inference.png" alt="openPangu inference results">
+              <figcaption><b>Table 6–7 与 Figure 7–8，p.28–29。</b>随着输入增长，per-NPU TPS 下降、TTFT 上升；图表同时给出 8K–128K 的趋势。</figcaption>
+            </figure>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>模式</th><th>模型 / ISL+OSL</th><th>TPOT</th><th>并发或 batch 口径</th><th>TPS/NPU</th></tr></thead>
+                <tbody>
+                  <tr><td>Ultra-low，A3 单节点</td><td>Flash / 8K+1K</td><td>5.27ms</td><td>global concurrency=1</td><td>—</td></tr>
+                  <tr><td>Ultra-low</td><td>Flash / 128K+1K</td><td>5.63ms</td><td>global concurrency=1</td><td>—</td></tr>
+                  <tr><td>Ultra-low</td><td>Pro / 8K+1K</td><td>9.53ms</td><td>global concurrency=1</td><td>—</td></tr>
+                  <tr><td>Ultra-low</td><td>Pro / 128K+1K</td><td>9.55ms</td><td>global concurrency=1</td><td>—</td></tr>
+                  <tr><td>Throughput</td><td>Flash / 8K+1K</td><td>16.2ms</td><td>per-NPU batch=48</td><td>2,963</td></tr>
+                  <tr><td>Throughput</td><td>Flash / 128K+8K</td><td>13.0ms</td><td>per-NPU batch=24</td><td>1,846</td></tr>
+                  <tr><td>Throughput</td><td>Pro / 8K+1K</td><td>23.2ms</td><td>per-NPU batch=40</td><td>1,727</td></tr>
+                  <tr><td>Throughput</td><td>Pro / 128K+8K</td><td>18.1ms</td><td>per-NPU batch=24</td><td>1,326</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>128K single-batch prefill：Flash 单 A3 node TTFT 2.6s，Pro 两个 A3 nodes TTFT 3.0s。报告没有给同硬件外部 baseline、功耗、成本、MTP 接受率或完整 E2E server utilization；TPS/NPU 也不等于集群总吞吐。</p>
+
+            <h3>12.3 能力评测怎么读：以下只是 Table 5 的部分代表性结果</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Benchmark</th><th>Flash non-thinking</th><th>Flash thinking</th><th>Pro non-thinking</th><th>Pro thinking</th></tr></thead>
+                <tbody>
+                  <tr><td>IFEval · PromptStrict</td><td>89.3</td><td>95.9</td><td>90.4</td><td>94.5</td></tr>
+                  <tr><td>AIME 2026 · Avg@16</td><td>86.5</td><td>93.3</td><td>87.3</td><td>95.4</td></tr>
+                  <tr><td>GPQA-Diamond · Avg@4</td><td>79.8</td><td>83.7</td><td>81.1</td><td>87.9</td></tr>
+                  <tr><td>BrowseComp · Acc</td><td>—</td><td>57.0</td><td>—</td><td>65.7</td></tr>
+                  <tr><td>LiveCodeBench V6 · Avg@3</td><td>50.9</td><td>85.1</td><td>74.5</td><td>85.7</td></tr>
+                  <tr><td>SWE-bench Verified · Avg@3</td><td>57.6</td><td>63.1</td><td>66.8</td><td>68.5</td></tr>
+                  <tr><td>GDPVal · Acc</td><td>—</td><td>51.4</td><td>51.2</td><td>74.9</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Table 5 统一使用 top-p=0.8、temperature=1.0，但只比较 openPangu 自身四种模式，没有外部模型列；粗体表示四个 openPangu 变体中最好，不代表行业最优。Claw-Eval 只测非多模态 splits；BrowseComp 使用 discard-all 且最多 300 iterations；SkillsBench、FeatBench、DeepCodeBench 使用 OpenCode，SWE-bench 使用 OpenHands；GDPVal 数据与 rubric 公开，但运行的是内部评测 pipeline。Deep Research 和全栈 mini-app 还依赖内部 pipeline 或 showcase，复现性弱于标准公开 benchmark。</p>
+          </section>
+
+          <section id="lineage">
+            <h2><span class="num">13 · Technical provenance</span>哪些可以画实线，哪些只能做横向比较</h2>
+
+            <div class="lineage">
+              <div class="lineage-row">
+                <div class="lineage-node">DeepSeek-V2 · MLA</div>
+                <div class="lineage-edge"><span>报告明确 built upon</span></div>
+                <div class="lineage-node">openPangu MLA base</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">DeepSeek-V3.2 · DSA<br>Longformer · SWA</div>
+                <div class="lineage-edge"><span>明确采用两类组件</span></div>
+                <div class="lineage-node">Hybrid DSA–SWA<br>1:2 interleaving</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">Attention Sink literature</div>
+                <div class="lineage-edge dashed"><span>问题与现象基础；非结构祖先</span></div>
+                <div class="lineage-node">PAS · 128 latent K/V</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">Hyper-Connections</div>
+                <div class="lineage-edge"><span>明确演进</span></div>
+                <div class="lineage-node">mHC</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">mHC</div>
+                <div class="lineage-edge"><span>采用并做稳定化</span></div>
+                <div class="lineage-node">openPangu stabilized mHC<br>4 streams + sandwich / block postnorm</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">Aux-loss-free MoE balancing</div>
+                <div class="lineage-edge"><span>明确采用并修改更新式</span></div>
+                <div class="lineage-node">RMS-normalized bias update</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">MTP · Gloeckle et al.<br>DeepSeek-V3 practice</div>
+                <div class="lineage-edge"><span>明确技术上游</span></div>
+                <div class="lineage-node">stage-adaptive MTP-3</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">Muon</div>
+                <div class="lineage-edge"><span>明确采用</span></div>
+                <div class="lineage-node">HyperParallel Muon+</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">Muon is Scalable for LLM Training</div>
+                <div class="lineage-edge dashed"><span>相关规模化前作与稳定性观察</span></div>
+                <div class="lineage-node">openPangu Muon stability discussion</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">GRPO</div>
+                <div class="lineage-edge"><span>明确用于专家 RL</span></div>
+                <div class="lineage-node">Reasoning / General / Agent / Coding experts</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">On-Policy Distillation / MiniLLM<br>及报告引用的后续 OPD 工作</div>
+                <div class="lineage-edge"><span>报告明确引用的蒸馏上游</span></div>
+                <div class="lineage-node">multi-expert OPD fusion</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">SmoothQuant</div>
+                <div class="lineage-edge"><span>量化基线</span></div>
+                <div class="lineage-node">2D exponent search W8A8</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">vLLM Hybrid KV / Single BlockPool / APC</div>
+                <div class="lineage-edge"><span>明确扩展缓存管理</span></div>
+                <div class="lineage-node">Pangu hybrid cache manager</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">vLLM V1 scheduler</div>
+                <div class="lineage-edge"><span>明确适配</span></div>
+                <div class="lineage-node">openPangu async scheduler</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">Mamba / Gated DeltaNet</div>
+                <div class="lineage-edge dashed"><span>缓存语义可类比，未确认算法来源</span></div>
+                <div class="lineage-node">ModAttn state cache</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">DeepEP</div>
+                <div class="lineage-edge"><span>明确借鉴两级通信设计；未确认使用 DeepEP 框架</span></div>
+                <div class="lineage-node">HyperParallel Muon+</div>
+              </div>
+              <div class="lineage-row">
+                <div class="lineage-node">Mooncake / LMCache</div>
+                <div class="lineage-edge dashed"><span>同类外部系统；报告未提及或未确认采用</span></div>
+                <div class="lineage-node">Omni Cache</div>
+              </div>
+              <div class="lineage-key">
+                <span>实线：报告明确采用、继承或扩展</span>
+                <span class="dash">虚线：同类背景、结构可比较或来源未确认</span>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>技术点</th><th>前序工作</th><th>openPangu 2.0 的变化</th><th>证据等级</th></tr></thead>
+                <tbody>
+                  <tr><td>MLA</td><td>DeepSeek-V2</td><td>作为 DSA/SWA 的共同压缩注意力底座</td><td>报告明确建立在其上</td></tr>
+                  <tr><td>DSA</td><td>DeepSeek-V3.2</td><td>与 SWA 按 1:2 编排，后置稀疏化</td><td>明确采用 + 组合/迁移再设计</td></tr>
+                  <tr><td>PAS</td><td>Attention Sink 研究</td><td>每层 128 对持久化 latent KV</td><td>现象来源明确；结构为本文方案</td></tr>
+                  <tr><td>ModAttn</td><td>无明确直接祖先</td><td>MLA 压缩分支与输出上的 kernel-3 因果卷积</td><td>报告提出</td></tr>
+                  <tr><td>MoE 主体</td><td>与 DeepSeekMoE 路线高度相近</td><td>shared + routed experts、Top-8</td><td>结构相近；直接来源未确认</td></tr>
+                  <tr><td>MoE 路由平衡</td><td>Auxiliary-Loss-Free Balancing；RMS 归一化更新</td><td>RMS-normalized load-balance bias</td><td>路线明确</td></tr>
+                  <tr><td>mHC</td><td>Hyper-Connections → mHC</td><td>sandwich norm + block postnorm</td><td>明确继承 + 稳定化改造</td></tr>
+                  <tr><td>MTP</td><td>Better & Faster LLMs；DeepSeek-V3</td><td>1→3 层阶段调度与 MTP-3 系统优化</td><td>明确上游 + 本文配方</td></tr>
+                  <tr><td>Muon</td><td>Muon；Muon is Scalable 为相关规模化前作</td><td>head grouping、HyperParallel Muon+</td><td>Muon 明确采用；前作为相关观察</td></tr>
+                  <tr><td>OPD</td><td>On-Policy Distillation、MiniLLM 及报告引用的后续 OPD 实践</td><td>四领域专家、training-engine 概率、多教师调度</td><td>报告引用 + 工程化</td></tr>
+                  <tr><td>Felix CP</td><td>Ulysses / KV CP 背景</td><td>DSA CP、SWA TP、ModAttn SP 的逐层编排</td><td>报告新系统方案</td></tr>
+                  <tr><td>Omni Cache</td><td>vLLM Hybrid KV / APC</td><td>DRAM-centric KV 与统一异构 page</td><td>明确扩展 + 自身缓存体系</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="limitations">
+            <h2><span class="num">14 · Evidence boundaries</span>报告没有回答什么</h2>
+            <div class="grid-2">
+              <div class="card"><span class="kicker">Compute</span><h4>训练账单缺失</h4><p>没有实际 NPU 数、超节点数、训练天数、NPU-hours、FLOPs、成本、能耗、吞吐或 MFU。</p></div>
+              <div class="card"><span class="kicker">Data</span><h4>数据构成不可审计</h4><p>没有来源比例、去重率、污染检查、许可证构成、合成数据占比和后训练 token/episode 数。</p></div>
+              <div class="card"><span class="kicker">Ablation</span><h4>主模型拆解不足</h4><p>PAS、mHC 的消融明确来自 15B 代理模型；routing-bias 曲线未注明模型规模；三者均缺少 92B/505B 的完整独立拆解。</p></div>
+              <div class="card"><span class="kicker">Long context</span><h4>512K 原生训练不等于无损</h4><p>缺少从短上下文到 512K 的专门 accuracy 曲线，也没有完整展示 DSA 转换的恢复程度。</p></div>
+              <div class="card"><span class="kicker">Post-training</span><h4>RL 规模与预算不透明</h4><p>没有各专家训练量、GRPO 超参、thinking 输出预算、工具成本和 MTP 接受率。</p></div>
+              <div class="card"><span class="kicker">Evaluation</span><h4>没有外部同表对比</h4><p>Table 5 只比较自身四种模式，内部 Deep Research 与 mini-app showcase 难以独立复现。</p></div>
+              <div class="card"><span class="kicker">Inference</span><h4>Ascend 特定口径</h4><p>缺同硬件外部 baseline、功耗和成本；operator、dispatch、TPOT 与 E2E 改善不能直接相加。</p></div>
+              <div class="card"><span class="kicker">Release</span><h4>部署与许可存在边界</h4><p>官方验证路径是 omni-infer + Ascend；权重许可证有地域和再分发限制，并非通用 Apache-2.0。</p></div>
+            </div>
+
+            <div class="callout">
+              <strong>总评</strong>
+              openPangu 2.0 的可信度最高之处是架构参数、预训练日程和昇腾推理系统的细节披露；最需要保留折扣的，是“各模块分别贡献了多少”、训练资源账单、后训练规模，以及性能相对于其他模型和其他硬件栈的可迁移性。
+            </div>
+          </section>
+
+          <section id="references">
+            <h2><span class="num">15 · Primary sources</span>一手资料与技术溯源链接</h2>
+            <ol class="refs">
+              <li><a href="https://huggingface.co/openpangu/openPangu-2.0-Pro/blob/main/openPangu-2.0%20Tech%20Report.pdf" target="_blank" rel="noreferrer">openPangu-2.0: Towards Reliable and Efficient Agentic Reasoning</a></li>
+              <li><a href="https://huggingface.co/openpangu/openPangu-2.0-Pro" target="_blank" rel="noreferrer">openPangu-2.0-Pro model card</a> · <a href="https://huggingface.co/openpangu/openPangu-2.0-Pro/blob/main/config.json" target="_blank" rel="noreferrer">config</a></li>
+              <li><a href="https://huggingface.co/openpangu/openPangu-2.0-Flash" target="_blank" rel="noreferrer">openPangu-2.0-Flash model card</a> · <a href="https://huggingface.co/openpangu/openPangu-2.0-Flash/blob/main/config.json" target="_blank" rel="noreferrer">config</a></li>
+              <li><a href="https://huggingface.co/openpangu/openPangu-2.0-Pro-Int8" target="_blank" rel="noreferrer">openPangu-2.0-Pro-Int8</a> · <a href="https://huggingface.co/openpangu/openPangu-2.0-Pro-Int8/blob/main/config.json" target="_blank" rel="noreferrer">w8a8_dynamic config</a> · <a href="https://huggingface.co/api/models/openpangu/openPangu-2.0-Pro-Int8" target="_blank" rel="noreferrer">HF storage metadata</a></li>
+              <li><a href="https://gitcode.com/ascend-tribe/openPangu-2.0-Infer" target="_blank" rel="noreferrer">openPangu-2.0-Infer / omni-infer deployment</a> · <a href="https://gitcode.com/ascend-tribe/openPangu-2.0-Infer/blob/main/README_EN.md" target="_blank" rel="noreferrer">BF16 README</a> · <a href="https://gitcode.com/ascend-tribe/openPangu-2.0-Infer/blob/main/README_INT8_EN.md" target="_blank" rel="noreferrer">INT8 README</a></li>
+              <li><a href="https://gitcode.com/ascend-tribe/openPangu-2.0-Infer/blob/main/tools/ansible/505B/omni_infer_inventory_used_for_2P1D.yml" target="_blank" rel="noreferrer">Pro 2P1D reference inventory</a></li>
+              <li><a href="https://gitcode.com/ascend-tribe/openPangu-2.0-Op" target="_blank" rel="noreferrer">openPangu-2.0-Op</a> · <a href="https://gitee.com/omniai/omni-ops" target="_blank" rel="noreferrer">omni-ops</a> · <a href="https://gitee.com/omniai/omniinfer" target="_blank" rel="noreferrer">OmniInfer</a></li>
+              <li><a href="https://huggingface.co/openpangu/openPangu-2.0-Pro/blob/main/LICENSE" target="_blank" rel="noreferrer">OpenPangu Model License Agreement Version 2.0</a></li>
+              <li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">Attention Is All You Need</a></li>
+              <li><a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noreferrer">DeepSeek-V2 / Multi-head Latent Attention</a></li>
+              <li><a href="https://arxiv.org/abs/2512.02556" target="_blank" rel="noreferrer">DeepSeek-V3.2 / DeepSeek Sparse Attention</a></li>
+              <li><a href="https://arxiv.org/abs/2004.05150" target="_blank" rel="noreferrer">Longformer / Sliding-Window Attention</a></li>
+              <li><a href="https://arxiv.org/abs/2309.17453" target="_blank" rel="noreferrer">StreamingLLM / Attention Sinks</a> · <a href="https://arxiv.org/abs/2410.10781" target="_blank" rel="noreferrer">When Attention Sink Emerges</a></li>
+              <li><a href="https://arxiv.org/abs/2401.06066" target="_blank" rel="noreferrer">DeepSeekMoE</a> · <a href="https://arxiv.org/abs/2408.15664" target="_blank" rel="noreferrer">Auxiliary-Loss-Free MoE Balancing</a></li>
+              <li><a href="https://openreview.net/forum?id=9FqARW7dwB" target="_blank" rel="noreferrer">Hyper-Connections</a> · <a href="https://arxiv.org/abs/2512.24880" target="_blank" rel="noreferrer">mHC</a></li>
+              <li><a href="https://arxiv.org/abs/2105.13290" target="_blank" rel="noreferrer">CogView / Sandwich normalization</a></li>
+              <li><a href="https://arxiv.org/abs/2404.19737" target="_blank" rel="noreferrer">Better &amp; Faster LLMs via Multi-token Prediction</a> · <a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noreferrer">DeepSeek-V3</a></li>
+              <li><a href="https://github.com/KellerJordan/Muon" target="_blank" rel="noreferrer">Muon</a> · <a href="https://arxiv.org/abs/2502.16982" target="_blank" rel="noreferrer">Muon is Scalable for LLM Training</a></li>
+              <li><a href="https://arxiv.org/abs/2309.14509" target="_blank" rel="noreferrer">DeepSpeed-Ulysses</a> · <a href="https://arxiv.org/abs/1910.02054" target="_blank" rel="noreferrer">ZeRO</a> · <a href="https://github.com/deepseek-ai/DeepEP" target="_blank" rel="noreferrer">DeepEP</a></li>
+              <li><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noreferrer">FlashAttention</a> · <a href="https://arxiv.org/abs/2307.08691" target="_blank" rel="noreferrer">FlashAttention-2</a></li>
+              <li><a href="https://arxiv.org/abs/2402.03300" target="_blank" rel="noreferrer">DeepSeekMath / GRPO</a> · <a href="https://openreview.net/forum?id=3zKtaqxLhW" target="_blank" rel="noreferrer">On-Policy Distillation of Language Models</a> · <a href="https://arxiv.org/abs/2306.08543" target="_blank" rel="noreferrer">MiniLLM</a></li>
+              <li><a href="https://arxiv.org/abs/2510.11370" target="_blank" rel="noreferrer">Rollout Routing Replay</a> · <a href="https://arxiv.org/abs/2510.18855" target="_blank" rel="noreferrer">IcePop</a></li>
+              <li><a href="https://arxiv.org/abs/2211.10438" target="_blank" rel="noreferrer">SmoothQuant</a> · <a href="https://github.com/vllm-project/vllm" target="_blank" rel="noreferrer">vLLM</a></li>
+              <li><a href="https://arxiv.org/abs/2511.04952" target="_blank" rel="noreferrer">LoPT</a></li>
+              <li><a href="https://www.usenix.org/conference/fast25/presentation/qin" target="_blank" rel="noreferrer">Mooncake</a> · <a href="https://github.com/LMCache/LMCache" target="_blank" rel="noreferrer">LMCache</a>（同类外部缓存系统对照；报告未提及或未确认采用）</li>
+            </ol>
+          </section>
+
+          <footer class="footer">
+            <span>openPangu 2.0 Technical Report · Independent Chinese Analysis</span>
+            <span>Source checked 2026-07-31 · Huawei/openPangu official materials</span>
+          </footer>
+        </article>
+      </div>
+    </main>
+  </div>
+  <a class="backtop" id="backtop" href="#top" aria-label="Back to top">↑</a>
+  <script>
+    (function () {
+      var progress = document.getElementById('progress');
+      var backtop = document.getElementById('backtop');
+      var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+      var sections = links.map(function (link) {
+        return document.querySelector(link.getAttribute('href'));
+      }).filter(Boolean);
+
+      function update() {
+        var doc = document.documentElement;
+        var max = doc.scrollHeight - doc.clientHeight;
+        var ratio = max > 0 ? doc.scrollTop / max : 0;
+        progress.style.width = (ratio * 100) + '%';
+        backtop.classList.toggle('visible', doc.scrollTop > 650);
+
+        var active = sections[0];
+        sections.forEach(function (section) {
+          if (section.getBoundingClientRect().top <= 130) active = section;
+        });
+        links.forEach(function (link) {
+          link.classList.toggle('active', active && link.getAttribute('href') === '#' + active.id);
+        });
+      }
+      document.addEventListener('scroll', update, { passive: true });
+      update();
+    })();
+  </script>
+</body>
+</html>
