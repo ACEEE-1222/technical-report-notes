@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Qwen3.8-Flash-Next：架构、效率与技术谱系</title>
+  <style>
+    :root {
+      --qwen:#2457ff; --qwen2:#173bd8; --qwen3:#102680; --ink:#101526;
+      --muted:#657089; --line:#dce4f6; --pale:#f5f8ff; --soft:#eaf0ff;
+      --green:#0e8a67; --amber:#a86708; --red:#c43d55; --purple:#7650c8;
+      --serif:"Songti SC","STSong","Noto Serif CJK SC",serif;
+      --sans:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+      --mono:"SFMono-Regular",Consolas,monospace;
+    }
+    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;color:var(--ink);font:15px/1.78 var(--sans);background:radial-gradient(circle at 90% 0,#dfe8ff 0,transparent 34rem),#f7f9fe}
+    a{color:var(--qwen2);text-decoration-thickness:1px;text-underline-offset:3px} img{max-width:100%}
+    .progress{position:fixed;inset:0 auto auto 0;height:3px;background:var(--qwen);width:0;z-index:20}
+    .page{max-width:1480px;margin:auto;display:grid;grid-template-columns:260px minmax(0,1fr);background:#fff;min-height:100vh;box-shadow:0 0 70px #244a9d18}
+    .sidebar{position:sticky;top:0;height:100vh;padding:32px 24px;border-right:1px solid var(--line);background:#fbfcff;overflow:auto}
+    .side-logo{display:block;margin-bottom:24px}.side-logo img{width:180px;height:auto}.edition{font:700 10px/1.5 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--qwen);margin-bottom:28px}
+    .toc-label{font:800 11px/1.4 var(--mono);letter-spacing:.16em;color:#9aa5bd;text-transform:uppercase}.toc{margin:10px 0 24px}.toc a{display:block;padding:7px 9px;margin:2px 0;border-radius:7px;text-decoration:none;color:#526078;font-size:12px;line-height:1.45}.toc a:hover,.toc a.active{background:var(--soft);color:var(--qwen2);font-weight:700}
+    .side-note{border-top:1px solid var(--line);padding-top:16px;color:#78839a;font-size:11px;line-height:1.65}
+    .hero{position:relative;overflow:hidden;color:#fff;background:linear-gradient(132deg,#071650 0,#1438c9 50%,#265dff 100%)}
+    .hero:before,.hero:after{content:"";position:absolute;border:1px solid #fff2;border-radius:50%}.hero:before{width:600px;height:600px;right:-220px;top:-310px;box-shadow:0 0 0 74px #ffffff08,0 0 0 148px #ffffff06}.hero:after{width:280px;height:280px;left:-180px;bottom:-180px;box-shadow:0 0 0 55px #ffffff08}
+    .hero-inner{position:relative;z-index:1;padding:72px 72px 66px;max-width:1060px}.hero-logo{display:inline-block;background:#fff;border-radius:9px;padding:12px 18px;margin-bottom:34px;box-shadow:0 18px 50px #020b3480}.hero-logo img{display:block;width:190px}
+    .eyebrow{font:750 11px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:#bcd0ff}.hero h1{font:900 clamp(38px,5.3vw,72px)/1.05 var(--sans);letter-spacing:-.045em;margin:16px 0}.hero h1 span{display:block;margin-top:12px;color:#bcd0ff;font-size:.58em;letter-spacing:-.02em}.dek{max-width:880px;margin:22px 0;color:#eaf0ff;font:20px/1.65 var(--serif)}
+    .hero-meta,.hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:25px}.hero-meta span{border:1px solid #ffffff30;background:#ffffff0d;border-radius:999px;padding:7px 11px;font:650 11px/1.2 var(--mono)}.hero-actions a{color:#fff;border:1px solid #ffffff42;border-radius:7px;padding:10px 14px;text-decoration:none;font-weight:700;font-size:12px}.hero-actions a:first-child{color:#1230aa;background:#fff;border-color:#fff}
+    .content-wrap{max-width:1060px;padding:0 72px 80px}.metric-strip{display:grid;grid-template-columns:repeat(4,1fr);margin:-1px 0 50px;border:1px solid var(--line);border-top:0}.metric{padding:21px 16px;border-right:1px solid var(--line);background:#fff}.metric:last-child{border:0}.metric strong{display:block;color:var(--qwen2);font:850 21px/1.2 var(--sans)}.metric span{display:block;margin-top:7px;color:var(--muted);font-size:11px;line-height:1.45}
+    section{padding:42px 0;border-bottom:1px solid var(--line)}section:last-child{border:0}h2{margin:0 0 22px;font:850 31px/1.22 var(--sans);letter-spacing:-.025em}h2 .num{display:block;margin-bottom:9px;color:var(--qwen);font:800 11px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase}h3{margin:31px 0 12px;color:var(--qwen3);font:800 20px/1.35 var(--sans)}h4{margin:18px 0 7px;font:800 15px/1.4 var(--sans)}p{margin:9px 0}.lead{font:19px/1.75 var(--serif);color:#26334d}.small,.caption{color:var(--muted);font-size:12px;line-height:1.65}.caption{margin:8px 5px 20px}.kicker{display:block;color:var(--qwen);font:800 10px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase}
+    .grid-2,.grid-3,.grid-4{display:grid;gap:14px;margin:18px 0}.grid-2{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:repeat(3,1fr)}.grid-4{grid-template-columns:repeat(4,1fr)}.card{padding:19px;border:1px solid var(--line);border-top:3px solid var(--qwen);border-radius:11px;background:#fff;box-shadow:0 10px 28px #173bd80b}.card h4{margin-top:6px}.card p{color:#5e6980;font-size:13px;line-height:1.65}
+    .callout{margin:20px 0;padding:18px 20px;border-left:5px solid var(--qwen);background:var(--pale);border-radius:0 9px 9px 0}.callout strong{display:block;color:var(--qwen3);margin-bottom:5px}.callout.amber{border-color:var(--amber);background:#fff8eb}.callout.red{border-color:var(--red);background:#fff3f5}.callout.green{border-color:var(--green);background:#effbf7}
+    .quote{margin:24px 0;padding:20px 24px;background:#0d1f72;color:#fff;border-radius:10px;font:19px/1.55 var(--serif)}.quote cite{display:block;margin-top:8px;color:#bcd0ff;font:11px/1.4 var(--mono);font-style:normal}
+    .table-wrap{overflow:auto;margin:16px 0 24px;border:1px solid var(--line);border-radius:9px}table{width:100%;border-collapse:collapse;font-size:12px;line-height:1.45;background:#fff}th{background:var(--soft);color:var(--qwen3);text-align:left;font-weight:800}th,td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}tr:last-child td{border-bottom:0}.hi{font-weight:850;color:var(--qwen2)}
+    .figure{margin:24px 0;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}.figure img{display:block;width:100%;height:auto}.figure figcaption{padding:10px 5px 1px;color:#66728a;font-size:12px;line-height:1.6}.figure figcaption b{color:var(--qwen3)}
+    .equation{margin:18px 0;padding:17px 20px;border-left:4px solid var(--qwen);background:#f7f9ff;color:#142f91;font:15px/1.85 var(--mono);overflow:auto}.code{margin:18px 0;padding:18px 20px;background:#0d1535;color:#dfe8ff;border-radius:10px;font:12px/1.7 var(--mono);white-space:pre-wrap;overflow:auto}.code .c{color:#8da3d9}.code .k{color:#7f9cff}.code .n{color:#8ee2c4}
+    .pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:18px 0}.step{position:relative;padding:15px 12px;border:1px solid #cbd7f5;background:#f7f9ff;border-radius:8px;text-align:center;font:750 12px/1.45 var(--sans)}.step:not(:last-child):after{content:"→";position:absolute;right:-11px;top:50%;transform:translateY(-50%);z-index:1;color:var(--qwen);font-weight:900}.step em{display:block;color:var(--qwen);font:800 10px/1.4 var(--mono);font-style:normal}
+    .evidence-legend{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.evidence{padding:14px;border-radius:8px;border:1px solid var(--line);font-size:11px;line-height:1.55}.evidence b{display:block;margin-bottom:4px}.explicit{border-top:4px solid var(--green)}.redesign{border-top:4px solid var(--qwen)}.related{border-top:4px dashed var(--amber)}.inference{border-top:4px dotted var(--purple)}
+    .lineage{position:relative;margin:22px 0}.lineage-row{display:grid;grid-template-columns:170px 40px minmax(0,1fr);align-items:center;margin:9px 0}.lineage-node{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12px}.lineage-arrow{text-align:center;color:var(--qwen);font-weight:900}.lineage-row.related .lineage-arrow{color:var(--amber)}.lineage-row.related .lineage-node:last-child{border-style:dashed}.lineage-note{font-size:11px;color:var(--muted);margin-top:3px}
+    .sources{counter-reset:source}.source{counter-increment:source;display:grid;grid-template-columns:34px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.source:before{content:counter(source,decimal-leading-zero);color:var(--qwen);font:800 11px/1.7 var(--mono)}.source a{font-weight:700}.source span{display:block;color:var(--muted);font-size:11px}
+    .tag{display:inline-block;margin:2px 3px 2px 0;padding:3px 7px;border:1px solid #cdd9f7;border-radius:999px;background:var(--pale);color:var(--qwen3);font:700 10px/1.3 var(--mono)}ul{padding-left:20px}li{margin:6px 0}
+    footer{padding:30px 0;color:#7b869c;font-size:11px}.toplink{float:right}
+    @media(max-width:1000px){.page{grid-template-columns:1fr}.sidebar{display:none}.hero-inner,.content-wrap{padding-left:34px;padding-right:34px}.grid-4{grid-template-columns:repeat(2,1fr)}.metric-strip{grid-template-columns:repeat(2,1fr)}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+    @media(max-width:660px){.hero-inner{padding:46px 22px}.content-wrap{padding:0 20px 55px}.hero h1{font-size:40px}.dek{font-size:17px}.grid-2,.grid-3,.grid-4,.evidence-legend,.metric-strip{grid-template-columns:1fr}.metric{border-right:0;border-bottom:1px solid var(--line)}.pipeline{grid-template-columns:1fr}.step:not(:last-child):after{content:"↓";right:50%;top:auto;bottom:-15px}.lineage-row{grid-template-columns:1fr}.lineage-arrow{transform:rotate(90deg)}h2{font-size:27px}}
+    @media print{@page{size:A4;margin:16mm 14mm 18mm}.progress,.sidebar,.metric-strip{display:none!important}.page{display:block;box-shadow:none;max-width:none}.hero{break-after:page;min-height:248mm}.hero-inner{padding:55mm 16mm 20mm}.content-wrap{max-width:none;padding:0}section{padding:8mm 0}.grid-2,.grid-3,.grid-4{break-inside:avoid}.card,.callout,.figure,.table-wrap,.equation,.quote{break-inside:avoid}h2,h3{break-after:avoid}.toc{display:none}a{color:inherit;text-decoration:none}.hero-actions{display:none}body{background:#fff;font-size:10.5px;line-height:1.62}.lead{font-size:13px}h2{font-size:22px}h3{font-size:15px}.card p{font-size:9px}.figure figcaption,.caption{font-size:8px}table{font-size:8px}.sources{font-size:9px}}
+  </style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="page">
+  <aside class="sidebar">
+    <a class="side-logo" href="#top"><img src="../../../assets/qwen3.8-flash-next/qwen-logo.png" alt="Qwen"></a>
+    <div class="edition">Qwen3.8-Flash-Next · report analysis · 2026</div>
+    <span class="toc-label">Contents</span>
+    <nav class="toc" id="toc">
+      <a href="#verdict">00 · 核心判断</a><a href="#scope">01 · 报告范围与发布口径</a>
+      <a href="#architecture">02 · 总体架构</a><a href="#gdn">03 · GDN 混合架构</a>
+      <a href="#qsa">04 · Qwen Sparse Attention</a><a href="#gr">05 · Gated Residual</a>
+      <a href="#ngram">06 · N-gram Embedding</a><a href="#optimizer">07 · Muon 与 Canzona</a>
+      <a href="#scaling">08 · 超参数缩放</a><a href="#stability">09 · 训练稳定性</a>
+      <a href="#disclosure">10 · 数据、算力与部署披露</a><a href="#evaluation">11 · 评测怎么读</a>
+      <a href="#lineage">12 · 技术谱系</a><a href="#boundaries">13 · 证据边界</a><a href="#references">14 · 一手资料</a>
+    </nav>
+    <div class="side-note">实线表示报告明确采用或直接组合；虚线表示问题、结构或思想相关，但报告未确认直接来源。发布页与论文实验分开引用。</div>
+  </aside>
+
+  <main id="top">
+    <header class="hero">
+      <div class="hero-inner">
+        <div class="hero-logo"><img src="../../../assets/qwen3.8-flash-next/qwen-logo.png" alt="Qwen logo"></div>
+        <p class="eyebrow">Architecture · Efficiency · Training Stability · Provenance</p>
+        <h1>Qwen3.8-Flash-Next<span>架构、效率与技术谱系全景解读</span></h1>
+        <p class="dek">从 3×GDN + 1×QSA 的混合 token mixer，到四分支 Gated Residual、离卡 n-gram memory、Muon/Canzona 与稳定性压力测试：沿技术报告原有论证顺序，拆解这套 Qwen4 前瞻架构。</p>
+        <div class="hero-meta"><span>125B / 6B active</span><span>+51B n-gram</span><span>48 layers · 512 experts</span><span>256K native · 1M YaRN</span></div>
+        <div class="hero-actions"><a href="https://github.com/QwenLM/Qwen3.8-Flash-Next/blob/main/tech_report.pdf" target="_blank" rel="noreferrer">查看原技术报告 ↗</a><a href="#lineage">跳转到技术谱系 ↓</a></div>
+      </div>
+    </header>
+
+    <div class="content-wrap">
+      <div class="metric-strip">
+        <div class="metric"><strong>12 × (3+1)</strong><span>每组 3 层 GDN + 1 层 QSA，共 48 层</span></div>
+        <div class="metric"><strong>2048 / 4</strong><span>QSA token budget / micro-block 压缩率</span></div>
+        <div class="metric"><strong>4 branches</strong><span>GR 扩宽残差流，读为逐通道 gate</span></div>
+        <div class="metric"><strong>≈1/9 FLOPs</strong><span>相对 Qwen3.7-Plus 的训练 FLOPs 口径</span></div>
+      </div>
+
+      <article>
+        <section id="verdict">
+          <h2><span class="num">00 · Executive reading</span>核心判断：这不是四个孤立模块，而是一套耦合设计</h2>
+          <p class="lead">Qwen3.8-Flash-Next 的主线可以概括为：用 GDN 压低大多数层的序列状态成本，用 QSA 保留周期性的精确全局检索；用四分支 GR 改写跨层信息流并提供显式幅度调节；再以离卡 n-gram 表扩充“记忆容量”，最后重新拟合 Muon 下的批量、学习率与稳定性边界。</p>
+          <div class="grid-4">
+            <div class="card"><span class="kicker">Token mixing</span><h4>常态压缩，周期检索</h4><p>36 层 GDN 把历史压进定长状态；12 层 QSA 仍能直接访问被索引器选中的远端 token。</p></div>
+            <div class="card"><span class="kicker">Residual</span><h4>四条流，各司其职</h4><p>GR 不再让所有层共享一条残差河道；实验显示一条分支形成长程通路，另外三条偏局部。</p></div>
+            <div class="card"><span class="kicker">Memory</span><h4>把容量移出算力核心</h4><p>51B n-gram 参数以确定性地址访问，可放主机内存并预取；增加容量几乎不增加矩阵 FLOPs。</p></div>
+            <div class="card"><span class="kicker">Optimization</span><h4>稳定性换取更激进配方</h4><p>GR 的显式 gate 降低梯度与激活异常，使更大 batch、更高学习率和取消 batch warmup 成为可行选择。</p></div>
+          </div>
+          <div class="quote">“Architecture, efficiency, and optimization form one coupled system.”<cite>Qwen3.8-Next Technical Report, §5</cite></div>
+          <div class="callout"><strong>报告最有价值的地方</strong>它没有只给最终结构，而是系统展示“看似更省”的方案为什么被放弃：NoPE 在预训练阶段看不出问题，却在后训练后更易无休止生成；GR Top-2 稀疏读几乎不伤预训练指标，却损害后训练质量；batch warmup 不仅无收益，还增加 18.8% optimizer steps。这些反例比单独的 SOTA 表更能解释最终架构。</div>
+          <h3>本文使用的证据等级</h3>
+          <div class="evidence-legend"><div class="evidence explicit"><b>明确采用</b>报告直接写明 follows、adopts、based on，或官方配置逐项确认。</div><div class="evidence redesign"><b>基于既有工作再设计</b>上游路线明确，Qwen 对门控、粒度、训练或系统实现做了关键修改。</div><div class="evidence related"><b>相关但非直接祖先</b>解决相近问题或结构可比较，报告没有确认来源关系。</div><div class="evidence inference"><b>分析推断</b>由公式、配置或算子约束推得，明确与作者原结论分开。</div></div>
+        </section>
+
+        <section id="scope">
+          <h2><span class="num">01 · Scope & release audit</span>报告范围与公开模型不是完全同一口径</h2>
+          <p class="lead">技术报告主要研究文本主干的架构选择、效率和预训练稳定性；公开的 Qwen3.8-Flash-Next 权重则是一个已后训练的多模态模型。理解这一点，才能正确归属论文表格、官方模型卡 benchmark 和部署信息。</p>
+          <div class="grid-2">
+            <div class="card"><span class="kicker">Technical report</span><h4>研究对象：文本主干与 base model</h4><p>核心是 GDN、QSA、GR、n-gram embedding、Muon 与 scaling recipe。论文最终 Table 11 比较的是三款 Base 模型的 14 项预训练 benchmark。</p></div>
+            <div class="card"><span class="kicker">Official release</span><h4>交付对象：多模态后训练模型</h4><p>官方模型卡额外披露 27 层视觉编码器、4B MTP、语言与视觉 agent benchmark、思考模式以及 SGLang/vLLM/TokenSpeed 部署入口。</p></div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>口径</th><th>公开信息</th><th>证据来源</th></tr></thead><tbody>
+            <tr><td>语言主干</td><td>125B 总参数、每 token 激活 6B，另有 51B n-gram</td><td>技术报告 + 官方模型卡</td></tr>
+            <tr><td>MTP</td><td>1 层、约 4B 参数；训练为多步预测，QSA 索引在推测步骤间复用</td><td>模型卡 + 报告 Fig.1 / Table 4</td></tr>
+            <tr><td>多模态</td><td>27 层视觉编码器，输出维度 2560，接入同一语言主干</td><td>官方 <a href="https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/main/config.json">config.json</a></td></tr>
+            <tr><td>上下文</td><td>原生 262,144；官方称可用 YaRN 扩展至 1,000,000</td><td>配置 + <a href="https://qwen.ai/blog?id=qwen3.8-flash-next">官方博客</a></td></tr>
+            <tr><td>权重体积与协议</td><td>HF 仓库约 360GB，Qwen Community License 1.0</td><td><a href="https://huggingface.co/Qwen/Qwen3.8-Flash-Next/tree/main">官方 HF 仓库</a></td></tr>
+          </tbody></table></div>
+          <div class="callout amber"><strong>参数总数为什么会看到 125B、176B、4B 等不同数字</strong>125B 是主语言模型参数；51B 是离卡 n-gram 表；4B 是 MTP。把三者相加可得到约 180B 的功能模块总量，但论文的主模型比较仍使用 125B/6B 口径。社区出现的“176B”通常只把 125B 与 51B 相加，没有计入 MTP。</div>
+        </section>
+
+        <section id="architecture">
+          <h2><span class="num">02 · Macro architecture</span>总体架构：48 层、512 专家、四条残差流</h2>
+          <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/fig-1-architecture.png" alt="Qwen3.8-Flash-Next architecture"><figcaption><b>论文 Fig.1。</b>主干以 3 个 GDN 层和 1 个 QSA 层组成一个四层组，共重复 12 次；每个 attention 与 MoE 子层前后都通过 GR 读写四分支残差状态。</figcaption></figure>
+          <div class="table-wrap"><table><thead><tr><th>模块</th><th>官方配置</th><th>结构含义</th></tr></thead><tbody>
+            <tr><td>主干</td><td>48 layers，hidden size 2560</td><td>12 组混合 token-mixing block</td></tr>
+            <tr><td>GDN</td><td>48 value heads / 16 QK heads，head dim 128，短卷积核 4</td><td>36 层定长 recurrent state；Q/K/V 先经短因果卷积</td></tr>
+            <tr><td>QSA core</td><td>24 Q heads / 2 KV heads，head dim 256，RoPE dim 64</td><td>12 层稀疏全局检索；GQA core 降低 KV cache</td></tr>
+            <tr><td>QSA indexer</td><td>4 Q heads / 1 shared K，dim 128；K=2048，r=4</td><td>每个 query 最多选 512 个完整 micro-block，再展开为 token</td></tr>
+            <tr><td>MoE</td><td>512 routed experts；Top-10 + 1 shared；expert dim 640</td><td>极高总容量、较低每 token 激活参数</td></tr>
+            <tr><td>GR</td><td>4 branches；low-rank 320=d/8</td><td>逐通道动态读 gate + 每分支标量写 gate</td></tr>
+            <tr><td>N-gram</td><td>layer 2；20M slots；bigram/trigram；128-way split</td><td>确定性 lookup memory，可与第 1 层计算重叠预取</td></tr>
+          </tbody></table></div>
+          <h3>一条 token 在一层里经历什么</h3>
+          <div class="pipeline"><div class="step"><em>01</em>GR 从四分支读出</div><div class="step"><em>02</em>GDN 或 QSA 混合 token</div><div class="step"><em>03</em>GR 写回四分支</div><div class="step"><em>04</em>GR 再次读出</div><div class="step"><em>05</em>MoE 后再写回</div></div>
+          <p>这意味着 GR 不是偶尔插入的附加层，而是每个 token mixer 和每个 MoE 的统一接口。它同时承担旧式 pre-norm 的归一化职责、分支选择职责和幅度控制职责，因此训练稳定性提升会反馈到 attention、MoE、学习率与 batch size 的选择。</p>
+        </section>
+
+        <section id="gdn">
+          <h2><span class="num">03 · Gated DeltaNet</span>GDN：把绝大多数历史压进可更新的矩阵记忆</h2>
+          <p class="lead">GDN 不是“缩小窗口的 attention”。它给每个 head 维护一个固定大小的 fast-weight 矩阵，当前 token 用 key 定位旧关联，用 value 与旧读出之差做增量写入，同时通过 decay gate 控制整张记忆的寿命。</p>
+          <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/fig-2-gdn.png" alt="Gated DeltaNet"><figcaption><b>论文 Fig.2。</b>Q/K/V 经过投影和短因果卷积；Q/K 做 L2 normalize；输出先做 zero-centered RMSNorm，再乘输入相关的 sigmoid gate。</figcaption></figure>
+          <div class="equation">S̃<sub>t−1</sub> = α<sub>t</sub>S<sub>t−1</sub><br>e<sub>t</sub> = v<sub>t</sub> − S̃<sub>t−1</sub><sup>T</sup>k<sub>t</sub><br>S<sub>t</sub> = S̃<sub>t−1</sub> + β<sub>t</sub>k<sub>t</sub>e<sub>t</sub><sup>T</sup><br>y<sub>t</sub> = S<sub>t</sub><sup>T</sup>q<sub>t</sub></div>
+          <div class="grid-3"><div class="card"><span class="kicker">Decay α</span><h4>全局遗忘</h4><p>α∈(0,1) 衰减旧状态，控制已有记忆保留多久。</p></div><div class="card"><span class="kicker">Error e</span><h4>先读再比较</h4><p>不是直接写 v，而是计算当前 key 已经读出了什么，再写残差误差。</p></div><div class="card"><span class="kicker">Write β</span><h4>定向改写</h4><p>β∈(0,1) 控制 rank-1 delta update 的强度，避免相似 key 无界累加。</p></div></div>
+          <h3>Qwen 在原始 GDN 上改了什么</h3>
+          <ul><li><b>输出 gate 从 SiLU 改为 sigmoid。</b>报告把这项改动明确写为相对原始 GDN 的差异；bounded positive gate 与 GR、gated attention 的稳定性观察一致。</li><li><b>统一使用 zero-centered RMSNorm。</b>这一做法沿用 Qwen3-Next，用来限制 RMSNorm gain 漂移。</li><li><b>每四层保留一层全局 attention。</b>有限状态记忆无法精确替代任意 token 的直接寻址，因此 QSA 周期性提供全局检索。</li><li><b>保留 RoPE。</b>NoPE 的预训练指标相近，但后训练后无休止生成率明显更高；最终配置不采用 NoPE。</li></ul>
+          <div class="table-wrap"><table><thead><tr><th>28-layer 25B-A3B；400B@4K + 80B@32K</th><th>平均分</th><th>相对观察</th></tr></thead><tbody><tr><td>Full attention</td><td>49.87</td><td>直接全局访问，成本最高</td></tr><tr><td>SWA hybrid（window 128）</td><td>51.15</td><td>局部高效，但窗口外只能靠层深传播</td></tr><tr><td class="hi">GDN hybrid</td><td class="hi">53.81</td><td>9 项中胜 full attention 8 项、胜 SWA 7 项</td></tr></tbody></table></div>
+          <div class="callout green"><strong>效率证据的正确范围</strong>FlashQLA 在 NVIDIA GPU 上相对 FLA Triton kernel，forward 快 2–3×、backward 约 2×。这是 fused linear-attention kernel 的对比，不等同于完整模型端到端训练快 2–3×。</div>
+        </section>
+
+        <section id="qsa">
+          <h2><span class="num">04 · Qwen Sparse Attention</span>QSA：不只稀疏 core attention，也压缩索引器本身</h2>
+          <p class="lead">QSA 明确沿着 DeepSeek Sparse Attention 的“轻量 indexer → Top-K → sparse core attention”路线继续设计。它针对 DSA 的剩余瓶颈做了关键改动：先把 key 序列按 4-token micro-block 压缩，再在 block 级打分，将索引复杂度从 O(n²) 降为 O(n²/r)。</p>
+          <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/fig-3-qsa.png" alt="Qwen Sparse Attention"><figcaption><b>论文 Fig.3。</b>左侧 indexer 用压缩 causal mask 给 key block 打分；选出的 block 展开为右侧 micro-block sparse mask，供 GQA core attention 计算。</figcaption></figure>
+          <h3>Indexer 的具体数据流</h3>
+          <div class="pipeline"><div class="step"><em>Project</em>4 路 query / 1 路 key</div><div class="step"><em>Compress</em>每 4 个 key 平均池化</div><div class="step"><em>Position</em>池化后再加 partial RoPE</div><div class="step"><em>Score</em>各 head ReLU 相似度求和</div><div class="step"><em>Select</em>Top-512 blocks → 2048 tokens</div></div>
+          <div class="equation">k̄<sub>b</sub> = RMSNorm(AvgPool(k<sub>p…p+r−1</sub>))<br>I<sub>ib</sub> = Σ<sub>h=1…H</sub> ReLU(⟨q<sub>ih</sub>, k̄<sub>b</sub>⟩), 仅当该 block 已完整出现<br>K<sub>B</sub> = ⌈K/r⌉ = 512，K=2048，r=4</div>
+          <p><b>为什么池化必须发生在 RoPE 之前？</b>如果先旋转再平均，相同内容会因 token 位置不同带着不同相位，平均后同时混合内容与旋转相位。QSA 先形成 block 内容摘要，再把该摘要放到 block 起始位置；这样一个 compressed key 对应一个清晰位置。</p>
+          <p><b>为什么尾部 incomplete block 永远加入？</b>当前 query 附近的最新 token 还没凑满 4 个，不能进入只允许完整 block 的 causal indexer。直接把尾部 token 加入候选集，既保持严格因果性，也避免丢掉最邻近上下文。</p>
+          <h3>两阶段训练：先学“去哪找”，再让主干适应“只看这些”</h3>
+          <div class="code"><span class="c"># Stage 1: dense distillation; backbone teacher 提供完整 attention</span>
+teacher_token = l1_normalize(sum_over_heads(softmax(full_attn_logits)))
+teacher_block = l1_normalize(max_pool(teacher_token, block_size=<span class="n">4</span>))
+loss = KL(teacher_block || softmax(indexer_score))
+train(indexer_only, steps=<span class="n">1000</span>, lr=<span class="n">1e-3</span>, tokens≈<span class="n">2B</span>)
+
+<span class="c"># Stage 2: sparse CPT; Top-K 真正进入主干计算</span>
+blocks = topk(indexer_score, <span class="n">512</span>)
+tokens = expand(blocks) + causal_tail
+output = sparse_core_attention(q, k[tokens], v[tokens])
+train(backbone_and_indexer, steps=<span class="n">8000</span>, lr=<span class="n">2.5e-5</span>, tokens≈<span class="n">200B</span>)</div>
+          <p>Stage 1 的 teacher block 用 <b>max pooling</b>，不是平均池化。原因是 attention 的关键证据可能集中在 block 内单个 token；平均会把尖峰稀释。Stage 2 则只在已选 block 上重新归一化 teacher probability，再计算 KL，让 indexer 与被稀疏化的主干一起适应。</p>
+          <div class="table-wrap"><table><thead><tr><th>QSA 结果</th><th>Full attention</th><th>QSA</th><th>解释</th></tr></thead><tbody><tr><td>8 项常规 benchmark 平均</td><td>75.9</td><td class="hi">76.8</td><td>7/8 不低于 full attention；不出现系统性短上下文退化</td></tr><tr><td>RULER 512K–1M</td><td>90.08</td><td class="hi">93.00</td><td>长上下文阶段反而更高</td></tr><tr><td>MRCR 512K / 1M</td><td>30.66 / 20.71</td><td class="hi">40.53 / 26.44</td><td>稀疏路由可能过滤大量无关上下文</td></tr><tr><td>四步 MTP accepted length</td><td>4.06</td><td>4.07</td><td>复用 Top-K index 基本不影响接受长度</td></tr></tbody></table></div>
+          <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/fig-5-6-qsa-efficiency.png" alt="QSA ablation and latency"><figcaption><b>论文 Fig.5–6。</b>micro-block=4 时 indexer latency 约为未压缩的 1/4；1M 上下文下，indexer prefill/decode 分别 3.8×/4.4×，完整 attention module 相对 paged GQA 分别 7.6×/4.9×。</figcaption></figure>
+          <div class="callout"><strong>为什么 QSA 适合 GDN/QSA 混合层</strong>跨层共享 index 的方法依赖相邻全局 attention 层拥有相似重要 token，但这里两层 QSA 之间隔着三层 GDN，隐藏状态已被 recurrent mixer 改写。QSA 在本层内部压缩 key，不依赖跨层相似度；论文消融中，IndexShare 即使把索引成本降到 0.5，仍未恢复 full-attention 水平，而 QSA 在 0.25 达到基线。</div>
+        </section>
+
+        <section id="gr">
+          <h2><span class="num">05 · Gated Residual</span>GR：把残差连接从“一条总线”变成“可寻址的四路存储”</h2>
+          <p class="lead">普通 pre-norm residual 让所有层读写同一个向量。早期特征必须与后续所有输出叠加在同一条流里。GR 把残差状态扩成四个平行分支，并让每个子层按 token、按通道决定读多少，再用每分支一个标量决定写多少。</p>
+          <h3>从 AltUp / HC / mHC 到 GR</h3>
+          <div class="table-wrap"><table><thead><tr><th>设计</th><th>读</th><th>写</th><th>分支间混合</th><th>Qwen 消融结论</th></tr></thead><tbody><tr><td>简化 AltUp</td><td>每分支静态标量</td><td>round-robin 单分支</td><td>无</td><td>仅扩宽已能把 loss 降约 0.01</td></tr><tr><td>HC / mHC</td><td>动态分支标量</td><td>动态分支标量</td><td>H<sub>res</sub>；mHC 约束为双随机矩阵</td><td>动态读写显著提升 benchmark</td></tr><tr><td class="hi">GR</td><td class="hi">每分支、每通道 sigmoid gate</td><td>每分支标量，范围约 0–2</td><td>移除 H<sub>res</sub></td><td>表达力集中在读；少一次完整 residual-state 读取</td></tr></tbody></table></div>
+          <div class="equation">R̂<sub>i</sub> = RMSNorm(R<sub>i</sub>; γ<sub>i</sub>)<br>G = unvec(σ(W<sub>u</sub> SiLU((1/n<sub>r</sub>)W<sub>d</sub> vec(R̂))))<br>x = (1/n<sub>r</sub>) Σ<sub>i</sub> G<sub>i</sub> ⊙ R̂<sub>i</sub><br>s = 2σ((1/n<sub>r</sub>)W<sub>w</sub>vec(R̂)), &nbsp; R′<sub>i</sub> = R<sub>i</sub> + s<sub>i</sub>y</div>
+          <div class="grid-3"><div class="card"><span class="kicker">Group RMSNorm</span><h4>四条分支分别归一化</h4><p>每条分支拥有独立 gain γ，避免先混合再归一化掩盖各分支尺度。</p></div><div class="card"><span class="kicker">Low-rank read</span><h4>先看全部分支，再给逐通道 gate</h4><p>从 4d 维状态压到 d/8，再还原为 4d gate；当前 d=2560，rank=320。</p></div><div class="card"><span class="kicker">Scalar write</span><h4>写不需要逐通道</h4><p>消融发现 read granularity 重要，write 细化收益很小，因此保留每分支一个标量。</p></div></div>
+          <div class="table-wrap"><table><thead><tr><th>25B-A3B，560B tokens，4 branches</th><th>Loss</th><th>9 项平均</th></tr></thead><tbody><tr><td>Pre-norm</td><td>1.617</td><td>50.91</td></tr><tr><td>mHC static</td><td>1.596</td><td>52.49</td></tr><tr><td>mHC dynamic</td><td>1.594</td><td>54.47</td></tr><tr><td class="hi">GR</td><td class="hi">1.590</td><td class="hi">54.66</td></tr></tbody></table></div>
+          <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/fig-7-gr-paths.png" alt="Gated Residual paths"><figcaption><b>论文 Fig.7。</b>在 20 层模型中，GR 学到一条典型 skip≈10.9 层的长程分支，另外三条分支的典型 skip≈3.4–3.9；长程路径主要把早期 GDN 输出送到周期性的全局 attention 层。</figcaption></figure>
+          <p>路径分解给出比“残差更宽所以更强”更具体的机制：Layer 0 GDN → Layer 15 attention 的输入份额从 0.020 升到 0.138；Layer 10 GDN → Layer 11 attention 的增量也达到 0.117。总体上，adjacent path 与 skip&gt;12 的份额上升，中距离 2–12 层路径下降。GR 没有简单增加平均跨层距离，而是把容量重分配给少数短程和长程关键通路。</p>
+          <h3>推理侧为什么没有采用 Top-2 分支读</h3>
+          <p>训练后可观察到写入常由两条分支主导，于是团队试过只读 gate 最大的两条分支。预训练 loss 与 benchmark 几乎不变，但后训练质量明显下降，最终放弃。实际优化选择是：将 residual state 保存为 FP8，使相对 BF16 的搬运字节减半；再把 read/write 各自融合成一个 kernel，并把 group RMSNorm 折进 read。</p>
+          <div class="callout amber"><strong>AttnRes 的位置</strong>报告将 Attention Residual 作为同条件比较对象：full AttnRes 在 28 层上 loss 1.762，与 GR+GatedNorm 持平；block summary 会损失 0.008–0.011。两者都改善跨层读取，但报告没有把 AttnRes 写成 GR 的来源，因此在谱系图中列为“相关但非直接祖先”。</div>
+        </section>
+
+        <section id="ngram">
+          <h2><span class="num">06 · N-gram embedding</span>把“参数容量”从专家计算搬到确定性查表</h2>
+          <p class="lead">MoE 用 router 选择要计算的专家；n-gram memory 用最近的局部 token 片段直接生成地址，查出向量并加到 token representation。前者增加条件计算，后者增加条件记忆，两者是正交的稀疏化轴。</p>
+          <div class="pipeline"><div class="step"><em>Context</em>形成 bigram / trigram key</div><div class="step"><em>Address</em>确定性映射到 20M slots</div><div class="step"><em>Prefetch</em>从 host memory 异步取回</div><div class="step"><em>Project</em>8 heads / n-gram</div><div class="step"><em>Add</em>在第 2 层注入表示</div></div>
+          <h3>为什么只放 Layer 2</h3>
+          <p>固定 n-gram 参数预算时，单层位置从浅到深都能降低 loss，多层分摊没有一致收益。Layer 2 的平均分最高（47.94，基线 45.44），并允许在 Layer 1 计算期间预取查表结果。选择 Layer 2 因而同时满足质量与系统重叠。</p>
+          <div class="table-wrap"><table><thead><tr><th>实验问题</th><th>结果</th><th>设计决策</th></tr></thead><tbody><tr><td>相同总参数：减少专家、增加 n-gram</td><td>loss 在 10× vocab 最低，但下游不稳定，未形成对 MoE-only 的清晰优势</td><td>不把 n-gram 当成专家的等价替代</td></tr><tr><td>保持 MoE 不变，额外增加 n-gram</td><td>20×→200× vocab 时 loss 1.553→1.526 单调下降；多数 benchmark 饱和或波动</td><td>作为额外 memory capacity 扩容</td></tr><tr><td>中文 benchmark</td><td>C-Eval 71.75→74.94，CMMLU 72.29→73.24，随 vocab 较一致上升</td><td>局部词片段查表对中文组合模式尤其有效</td></tr></tbody></table></div>
+          <div class="callout"><strong>51B 参数不意味着 51B 都在每 token 上计算</strong>embedding table 是稀疏访问：每个 token 只命中少量行。主要代价是容量、地址计算和内存搬运，而不是对 51B 权重做矩阵乘。确定性地址还使下一批查表可预知，因此适合 host offload 与 prefetch。</div>
+          <p>技术来源方面，报告把该模块放在 N-Grammer、Gemma 3n、DeepEmbed、Conditional Memory/Engram、Scaling Embeddings 等 lookup-memory 路线中。最终设计与 Engram 在“n-gram 地址、离卡存储、预取”的思想上接近；报告将这些工作并列引用，未指定单一直接祖先。</p>
+        </section>
+
+        <section id="optimizer">
+          <h2><span class="num">07 · Optimizer & system</span>Muon 不只是换更新公式，还重做了参数归属与分布式执行</h2>
+          <p class="lead">Muon 对矩阵动量做 Newton–Schulz 正交化。真正困难的是：Megatron 中一个逻辑矩阵可能被 TP 切开，而不同矩阵的 NS FLOPs 随短边近似三次增长，按参数元素平均切 DP 会产生严重 straggler。Qwen 通过 Canzona 解耦“物理存放位置”和“谁负责算 optimizer”。</p>
+          <h3>哪些参数用 Muon，哪些不用</h3>
+          <div class="table-wrap"><table><thead><tr><th>参数类别</th><th>优化器</th><th>原因</th></tr></thead><tbody><tr><td>attention Q/K/V/O；GDN 输入/输出；MoE fc1/fc2；n-gram K/V projection</td><td class="hi">Muon</td><td>二维权重确实扮演共享结构的线性映射</td></tr><tr><td>input embedding、LM head</td><td>AdamW</td><td>不是普通隐层矩阵更新问题</td></tr><tr><td>MoE router</td><td>AdamW</td><td>Muon 加剧早期波动；专家 logit 维度更接近相互独立输出</td></tr><tr><td>GR 两个细长 low-rank projection</td><td>AdamW</td><td>极长宽比下消融表现更好</td></tr><tr><td>attention/GDN output gate、GDN α/β 向量</td><td>AdamW</td><td>gate 不优于 AdamW；标量/向量不适合矩阵正交化</td></tr><tr><td>n-gram table</td><td>Adam，无 weight decay</td><td>稀疏 lookup table</td></tr></tbody></table></div>
+          <h3>Muon 细节</h3>
+          <ul><li>Nesterov momentum μ=0.95；更新按矩阵形状缩放，使 update RMS 不依赖 shape。</li><li>使用 Polar Express 的逐步系数；Newton–Schulz 迭代 8 步。更多迭代不仅正交化更准确，也降低 stress test 的 gradient spike。</li><li>QKV、SwiGLU fc1、GDN input 在 Megatron 里是 fused matrix，但语义上由独立算子拼接。报告先按 head 或 gate/up 切分，再各自 NS，避免把无关奇异方向混在一起。</li></ul>
+          <h3>Canzona 的分布式路线</h3>
+          <div class="pipeline"><div class="step"><em>Estimate</em>按矩阵 shape 估 NS FLOPs</div><div class="step"><em>Assign</em>α-balanced 整矩阵分配到 DP owner</div><div class="step"><em>Rebuild</em>TP fragment 经 fused All-to-All 重构</div><div class="step"><em>Compute</em>owner 完整执行 Muon step</div><div class="step"><em>Overlap</em>保留 ZeRO-1 bucket 与反传重叠</div></div>
+          <p>切分 fused 参数后，一层会产生约百个小矩阵，optimizer step 容易从算力受限变成 kernel launch 受限。最终把整个 step 捕获进 CUDA Graph。这里的贡献重点是让 Muon 在 Megatron 3D parallelism 下保持数学等价、负载均衡和通信重叠，不是更改 Muon 的目标函数。</p>
+          <div class="callout green"><strong>相关系统证据</strong>独立 Canzona 论文在 Qwen3 系列、最高 256 GPU 的实验中报告相对基线 1.57× iteration speedup 与 5.8× optimizer-step latency 降低。Qwen3.8 报告说明采用该框架，但没有披露本次 125B 生产训练的完整端到端吞吐或 GPU 数。</div>
+        </section>
+
+        <section id="scaling">
+          <h2><span class="num">08 · Hyperparameter scaling</span>新架构 + Muon 改变了“最合适的 batch 与学习率”</h2>
+          <p class="lead">旧 Qwen3.5 的 scaling law 不能直接平移。团队重新拟合 η 与 batch size：新配方的近优区域整体向更大 batch、更高 learning rate 移动，而且大 batch 的损失曲线在最优点上方很平，在下方却陡峭。</p>
+          <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/fig-8-batch-scale.png" alt="Batch size scaling"><figcaption><b>论文 Fig.8。</b>20-layer 10.8B-A0.89B、4T-token 预算：B=25.2M 最优；37.7M 几乎同水平；旧 12.6M 明显更差。batch warmup 不能超过直接从 25.2M 开始。</figcaption></figure>
+          <div class="table-wrap"><table><thead><tr><th>验证</th><th>旧配方</th><th>新预测</th><th>观察</th></tr></thead><tbody><tr><td>小模型、超长 token budget</td><td>B=12.6M</td><td class="hi">B=25.2M</td><td>最后 20B token loss：1.5774 → 1.5702</td></tr><tr><td>batch warmup</td><td>6.3M 分段升到 25.2M</td><td>固定 25.2M</td><td>warmup 略差，并多 18.8% optimizer steps</td></tr><tr><td>大模型、419B-token</td><td>B=4.2M, η=6.8e−4</td><td class="hi">B=8.4M, η=1.76e−3</td><td>旧配方最终 loss 高 0.0078；benchmark 平均 56.41 vs 60.55</td></tr></tbody></table></div>
+          <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/fig-9-lr-scale.png" alt="Learning rate scaling"><figcaption><b>论文 Fig.9。</b>48-layer 156B-A7B：预测最优点与 ±√2 learning-rate、+25% batch 的四组结果仅差约 7×10⁻⁴，说明新最优点位于较宽的平坦谷底；旧配方显著落后。</figcaption></figure>
+          <div class="callout"><strong>为什么取消 batch warmup</strong>在 Muon + MoE 设置下，小 batch 带来的梯度噪声和每专家 token 多样性不足，比“大 batch 早期可能浪费样本”更严重。warmup 虽短期积累更多 optimizer steps，但最终被固定大 batch 反超。这里的结论来自特定架构与优化器，不是对所有 LLM 训练的通用否定。</div>
+        </section>
+
+        <section id="stability">
+          <h2><span class="num">09 · Training stability</span>稳定性不是“没炸过”，而是用高学习率主动把故障放大</h2>
+          <p class="lead">大模型生产训练的偶发 spike 很难用小实验观察。报告采用 stress test：在 28-layer MoE 上保持 2×、4× 最优学习率不衰减，让本应在超长生产训练中才出现的不稳定性在 10 万步内暴露。</p>
+          <div class="grid-3"><div class="card"><span class="kicker">2× LR</span><h4>Muon 抵抗早期 spike</h4><p>AdamW Qwen3.5 为 4.3 spikes/10k；两种 Muon 配置约 0.2/10k。</p></div><div class="card"><span class="kicker">4× LR</span><h4>GR 拉开类别差异</h4><p>AdamW 183 spikes/10k；Muon+GR 为 0，且 Muon 组都未跨 0.5 clipping threshold。</p></div><div class="card"><span class="kicker">Gate isolation</span><h4>控制变量确认 gate 作用</h4><p>AdamW、结构、数据顺序相同，打开 GatedNorm 后 spike 32.0→3.2/10k，threshold crossing 256→20。</p></div></div>
+          <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/fig-12-gate-stability.png" alt="GatedNorm stress test"><figcaption><b>论文 Fig.12。</b>显式 multiplicative gate 给网络一个直接的重缩放通道；在无 gate 模型中，学习率升高会伴随 activation outlier 快速增长。</figcaption></figure>
+          <h3>生产规模前 276B token 的同数据对照</h3>
+          <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/fig-13-production.png" alt="Production training stability"><figcaption><b>论文 Fig.13。</b>三组运行共享数据顺序、学习率 schedule 与 Muon：Qwen3.5 backbone；加 GR；完整 Flash-Next。GR 将 276B 时 loss 降 0.026，完整架构再降 0.032。</figcaption></figure>
+          <ul><li>Qwen3.5+Muon 的 median/p99.9 gradient norm 为 0.097/0.298；加 GR 后 0.053/0.071；完整 Flash-Next 为 0.043/0.066。</li><li>两组 gated run 的 1000-step rolling std 低 4.3–4.7×；只有无 gate 的 Muon run 跨过 clipping threshold。</li><li>GR 显著降低各层 residual maximum。最终训练不依赖 qk-clip 或 SwiGLU-clip 这类显式 activation clipping。</li></ul>
+          <div class="callout green"><strong>机制解释</strong>高学习率要求网络不断调节信号幅度。没有显式 gate 时，网络可能通过放大 activation outlier 间接实现重缩放，导致脆弱性；GR/GatedNorm 直接提供 bounded multiplicative path，因此不必把幅度压力转移到异常激活。</div>
+        </section>
+
+        <section id="disclosure">
+          <h2><span class="num">10 · Disclosure audit</span>训练数据、算力、时长与部署：报告披露到哪里</h2>
+          <p class="lead">这份报告的重点是架构实验，不是完整训练或部署白皮书。它披露了大量 ablation token budget、QSA CPT token 和相对成本，但没有给出主模型总训练 token 的绝对值、训练卡数、硬件拓扑、墙钟时长或 MFU。</p>
+          <div class="table-wrap"><table><thead><tr><th>问题</th><th>报告可确认</th><th>仍未披露</th></tr></thead><tbody><tr><td>主模型训练数据量</td><td>相对 Qwen3.7-Plus 约 1/3 training tokens；QSA Stage 1≈2B、Stage 2≈200B；生产对照展示前 276B</td><td class="hi">完整预训练 token 绝对量、数据构成、去重与语言比例</td></tr><tr><td>训练算力</td><td>相对训练 FLOPs 约 1/9；FlashQLA 在 NVIDIA GPU 上测试</td><td class="hi">GPU 型号、卡数、并行配置、MFU、总 GPU hours</td></tr><tr><td>训练时长</td><td>无</td><td class="hi">墙钟天数、失败/恢复成本</td></tr><tr><td>长上下文训练</td><td>QSA 在 256K CPT 中引入，共 9000 steps、约 202B token</td><td>完整 context curriculum 与 YaRN 训练细节</td></tr><tr><td>推理系统</td><td>QSA/FlashQLA/GR fused kernel；FP8 residual；host-memory n-gram prefetch；CUDA Graph optimizer</td><td>官方集群调度、KV cache 层级、PD disaggregation、端到端吞吐/TTFT</td></tr></tbody></table></div>
+          <h3>能否理解为“用了 vLLM / SGLang 就完成部署优化”</h3>
+          <p>官方模型卡给出 SGLang、vLLM 和 TokenSpeed 的部署入口，这说明生态兼容已经完成；技术报告中的主要效率工作却发生在模型算子与训练系统层：FlashQLA、QSA sparse kernel、GR read/write fusion、FP8 residual、n-gram host prefetch、Canzona 和 CUDA Graph。它没有给出类似 Mooncake 的多级缓存、PD 分离或跨节点 serving 调度设计，因此不能据此声称完成了全栈在线服务优化。</p>
+          <div class="callout amber"><strong>报告中的 7.6× / 4.9× 不应外推到 API 性能</strong>这两个数字是 1M context、指定 batch/chunk 条件下的 attention-module kernel latency，对比 paged GQA。端到端服务还受 MoE、视觉编码器、n-gram I/O、调度、batching、网络通信与采样影响。</div>
+        </section>
+
+        <section id="evaluation">
+          <h2><span class="num">11 · Evaluation</span>论文证明的是 base-model 效率前沿，不是完整产品能力排名</h2>
+          <p class="lead">Table 11 比较 Qwen3.8-Flash-Next-Base、Qwen3.8-27B-Base 与 Qwen3.7-Plus-Base。Flash-Next 在 14 项中全部超过 27B dense，并在 8/14 超过 397B-A17B 前代；其余差距最大 2.6 分。</p>
+          <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/table-11-base-eval.png" alt="Base model evaluation"><figcaption><b>论文 Table 11。</b>优势集中在 MMLU-Pro、SuperGPQA、BBH、EvalPlus、SWE-Bench-Pretrain、MGSM、MMMLU；Qwen3.7-Plus 在 MMLU-Redux、MATH、MultiPL-E、INCLUDE 等仍领先。</figcaption></figure>
+          <div class="grid-3"><div class="card"><span class="kicker">Vs 27B dense</span><h4>14 / 14 领先</h4><p>说明 6B active 的稀疏模型在此训练量下建立了更高容量效率。</p></div><div class="card"><span class="kicker">Vs 397B-A17B</span><h4>8 / 14 领先</h4><p>以 1/3 active params、1/3 tokens 达到相近 base quality。</p></div><div class="card"><span class="kicker">Cost claim</span><h4>≈1/9 training FLOPs</h4><p>主要由 active params 与 token 两个约 1/3 相乘得来，是近似相对口径。</p></div></div>
+          <h3>如何看官方后训练 benchmark</h3>
+          <p><a href="https://huggingface.co/Qwen/Qwen3.8-Flash-Next">官方模型卡</a>另给出 DeepSWE、SWE-bench Pro、CoWorkBench、OSWorld、MathVision 等语言/视觉 agent 结果。这些数据证明公开 checkpoint 的产品能力，但并非本技术报告的同一组实验：部分是内部 benchmark，harness、上下文与 judge 也各不相同。本文把它们作为发布补充，不混入论文 Table 11 的架构因果论证。</p>
+          <div class="callout red"><strong>哪些因果结论仍不完整</strong>最终模型由 GDN/QSA、GR、n-gram、Muon 与新训练配方共同组成。报告提供大量中等规模单模块消融，但没有在最终 125B 模型上给出完整 factorial ablation；因此“总提升由每个模块分别贡献多少”不能从 Table 11 反推。</div>
+        </section>
+
+        <section id="lineage">
+          <h2><span class="num">12 · Technical provenance</span>技术谱系：明确继承、再设计与相关路线</h2>
+          <p class="lead">下图按证据强度描述技术关系。实线节点表示报告明确采用或组合；虚线节点表示同问题域的结构比较。相近不自动等于来源。</p>
+          <h3>Token mixing</h3>
+          <div class="lineage">
+            <div class="lineage-row"><div class="lineage-node"><a href="https://arxiv.org/abs/2412.06464">Gated DeltaNet</a><div class="lineage-note">decay + delta-rule fast weight</div></div><div class="lineage-arrow">→</div><div class="lineage-node"><b>Qwen GDN</b><div class="lineage-note">sigmoid output gate + zero-centered RMSNorm + 3:1 hybrid</div></div></div>
+            <div class="lineage-row"><div class="lineage-node"><a href="https://arxiv.org/abs/2512.02556">DeepSeek Sparse Attention</a><div class="lineage-note">learned indexer → Top-K sparse core</div></div><div class="lineage-arrow">→</div><div class="lineage-node"><b>QSA</b><div class="lineage-note">micro-block key compression + partial RoPE + two-stage CPT</div></div></div>
+            <div class="lineage-row related"><div class="lineage-node"><a href="https://arxiv.org/abs/2603.12201">IndexCache / IndexShare</a><div class="lineage-note">跨层复用 index</div></div><div class="lineage-arrow">⇢</div><div class="lineage-node">相关但非直接祖先：QSA 选择层内压缩，论文把跨层共享作为对照</div></div>
+          </div>
+          <h3>Residual</h3>
+          <div class="lineage">
+            <div class="lineage-row"><div class="lineage-node"><a href="https://arxiv.org/abs/2301.13310">AltUp</a> → <a href="https://arxiv.org/abs/2409.19606">HC</a> → <a href="https://arxiv.org/abs/2512.24880">mHC</a><div class="lineage-note">残差流扩宽与动态 read/write</div></div><div class="lineage-arrow">→</div><div class="lineage-node"><b>GR 的 widened residual 主线</b></div></div>
+            <div class="lineage-row"><div class="lineage-node"><a href="https://arxiv.org/abs/2601.22966">GatedNorm / sink 统一视角</a><div class="lineage-note">归一化后的逐通道 self-gate</div></div><div class="lineage-arrow">→</div><div class="lineage-node"><b>GR 的 elementwise read gate</b><div class="lineage-note">与 widened stream 合并，去掉 Hres</div></div></div>
+            <div class="lineage-row related"><div class="lineage-node"><a href="https://arxiv.org/abs/2603.15031">Attention Residuals</a><div class="lineage-note">对跨层输出做 attention read</div></div><div class="lineage-arrow">⇢</div><div class="lineage-node">相关但非直接祖先：报告作同条件 loss/效率比较</div></div>
+          </div>
+          <h3>Memory & optimization</h3>
+          <div class="lineage">
+            <div class="lineage-row"><div class="lineage-node"><a href="https://arxiv.org/abs/2207.06366">N-Grammer</a> · <a href="https://arxiv.org/abs/2601.07372">Engram</a> · <a href="https://arxiv.org/abs/2601.21204">Embedding scaling</a><div class="lineage-note">局部上下文查表与条件记忆</div></div><div class="lineage-arrow">→</div><div class="lineage-node"><b>Qwen n-gram layer</b><div class="lineage-note">Layer 2，20M slots，51B 参数，host prefetch</div></div></div>
+            <div class="lineage-row"><div class="lineage-node"><a href="https://kellerjordan.github.io/posts/muon/">Muon</a> + <a href="https://arxiv.org/abs/2505.16932">Polar Express</a><div class="lineage-note">矩阵动量正交化与 8-step NS</div></div><div class="lineage-arrow">→</div><div class="lineage-node"><b>Qwen optimizer recipe</b><div class="lineage-note">语义切分 fused matrix + 参数分类</div></div></div>
+            <div class="lineage-row"><div class="lineage-node"><a href="https://arxiv.org/abs/2602.06079">Canzona</a><div class="lineage-note">logical ownership ≠ physical layout</div></div><div class="lineage-arrow">→</div><div class="lineage-node"><b>分布式 Muon 执行</b><div class="lineage-note">α-balanced DP + TP Micro-Group + CUDA Graph</div></div></div>
+          </div>
+        </section>
+
+        <section id="boundaries">
+          <h2><span class="num">13 · Evidence boundaries</span>证据边界与阅读结论</h2>
+          <div class="grid-2"><div class="card"><span class="kicker">Strongly supported</span><h4>报告直接支持的结论</h4><p>3:1 GDN/QSA；QSA micro-block indexer 与两阶段 CPT；GR 四分支、逐通道读 gate；Layer 2 n-gram；Muon 参数分类；stress test 与 base benchmark。</p></div><div class="card"><span class="kicker">Official supplement</span><h4>模型卡/配置支持的结论</h4><p>48 层、512 experts、Top-10+shared、20M n-gram slots、4B MTP、视觉 encoder、256K/1M context、公开部署框架。</p></div><div class="card"><span class="kicker">Not disclosed</span><h4>不能从报告得到的结论</h4><p>主训练绝对 token、数据混合、GPU 规模、MFU、时长、完整 serving topology、端到端 API 吞吐与每模块最终 125B 贡献。</p></div><div class="card"><span class="kicker">Analysis</span><h4>本文的综合判断</h4><p>QSA 解决全局检索，GDN 解决常态状态成本，GR 解决跨层容量和幅度调节，n-gram 解决“容量不必等于计算”，Muon/Canzona 把收敛和系统执行闭环。</p></div></div>
+          <div class="callout"><strong>最终评价</strong>Qwen3.8-Flash-Next 最突出的贡献不是发明一个全新基本算子，而是把四条已有研究线索推成一套可共同训练、可长上下文推理、可离卡扩容的生产候选架构。报告的说服力来自大规模消融与失败方案披露；其边界则是缺少完整数据/算力账本、最终模型模块级消融和端到端 serving 指标。</div>
+        </section>
+
+        <section id="references">
+          <h2><span class="num">14 · Primary sources</span>一手资料与关键论文</h2>
+          <div class="sources">
+            <div class="source"><div><a href="https://github.com/QwenLM/Qwen3.8-Flash-Next/blob/main/tech_report.pdf">Qwen3.8-Next Technical Report</a><span>本文主证据：架构、消融、训练稳定性与 base evaluation。</span></div></div>
+            <div class="source"><div><a href="https://qwen.ai/blog?id=qwen3.8-flash-next">Qwen3.8-Flash-Next Official Blog</a><span>官方发布定位、256K/1M context 与 Qwen4 preview。</span></div></div>
+            <div class="source"><div><a href="https://huggingface.co/Qwen/Qwen3.8-Flash-Next">Official Model Card</a> · <a href="https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/main/config.json">config.json</a><span>模型结构参数、MTP、视觉编码器、benchmark 与部署入口。</span></div></div>
+            <div class="source"><div><a href="https://arxiv.org/abs/2412.06464">Gated Delta Networks</a><span>GDN 的直接结构来源。</span></div></div>
+            <div class="source"><div><a href="https://arxiv.org/abs/2512.02556">DeepSeek-V3.2 / DeepSeek Sparse Attention</a><span>QSA 明确跟随的 learned-indexer sparse-attention 路线。</span></div></div>
+            <div class="source"><div><a href="https://github.com/QwenLM/FlashQLA">FlashQLA</a> · <a href="https://github.com/fla-org/flash-linear-attention">FLA</a><span>Qwen GDN fused kernel 与对比基线。</span></div></div>
+            <div class="source"><div><a href="https://arxiv.org/abs/2301.13310">AltUp</a> · <a href="https://arxiv.org/abs/2409.19606">Hyper-Connections</a> · <a href="https://arxiv.org/abs/2512.24880">mHC</a><span>残差流扩宽与动态 read/write 主线。</span></div></div>
+            <div class="source"><div><a href="https://arxiv.org/abs/2601.22966">A Unified View of Attention and Residual Sinks</a><span>GatedNorm 与显式重缩放机制。</span></div></div>
+            <div class="source"><div><a href="https://arxiv.org/abs/2603.15031">Attention Residuals</a><span>GR 的跨层读取比较对象。</span></div></div>
+            <div class="source"><div><a href="https://arxiv.org/abs/2207.06366">N-Grammer</a> · <a href="https://arxiv.org/abs/2601.07372">Conditional Memory / Engram</a> · <a href="https://arxiv.org/abs/2601.21204">Scaling Embeddings</a><span>n-gram lookup-memory 与 embedding scaling 背景。</span></div></div>
+            <div class="source"><div><a href="https://kellerjordan.github.io/posts/muon/">Muon</a> · <a href="https://arxiv.org/abs/2505.16932">Polar Express</a><span>矩阵优化器与 Newton–Schulz 系数方案。</span></div></div>
+            <div class="source"><div><a href="https://arxiv.org/abs/2602.06079">Canzona</a><span>分布式矩阵优化器的异步、负载均衡执行框架。</span></div></div>
+            <div class="source"><div><a href="https://arxiv.org/abs/2602.15763">GLM-5</a><span>MTP speculative step 之间复用 sparse Top-K index 的直接参考。</span></div></div>
+          </div>
+          <footer>Analysis edition · 2026-08-27 · Based on the official report, model card, config and cited primary sources.<a class="toplink" href="#top">返回顶部 ↑</a></footer>
+        </section>
+      </article>
+    </div>
+  </main>
+</div>
+<script>
+  const sections=[...document.querySelectorAll('section[id]')],links=[...document.querySelectorAll('#toc a')];
+  const update=()=>{const y=scrollY+160;let id=sections[0]?.id;for(const s of sections){if(s.offsetTop<=y)id=s.id}links.forEach(a=>a.classList.toggle('active',a.hash==='#'+id));const h=document.documentElement;document.querySelector('#progress').style.width=((h.scrollTop/(h.scrollHeight-h.clientHeight))*100||0)+'%'};
+  addEventListener('scroll',update,{passive:true});update();document.documentElement.dataset.reportReady='true';
+</script>
+</body>
+</html>

@@ -9,6 +9,7 @@
 | Moonshot AI | Kimi K3 | [HTML 分析](https://aceee-1222.github.io/technical-report-notes/Kimi/K3/analysis/kimi-k3-analysis.html) | [PDF 分析](Kimi/K3/analysis/kimi-k3-analysis.pdf) |
 | DeepSeek | DeepSeek-V4 | [HTML 分析](https://aceee-1222.github.io/technical-report-notes/DeepSeek/V4/analysis/deepseek-v4-analysis.html) | [PDF 分析](DeepSeek/V4/analysis/deepseek-v4-analysis.pdf) |
 | Huawei | openPangu 2.0 | [HTML 分析](https://aceee-1222.github.io/technical-report-notes/Huawei/openPangu-2.0/analysis/openpangu-2-analysis.html) | [PDF 分析](Huawei/openPangu-2.0/analysis/openpangu-2-analysis.pdf) |
+| Alibaba Cloud / Qwen | Qwen3.8-Flash-Next | [HTML 分析](https://aceee-1222.github.io/technical-report-notes/Qwen/Qwen3.8-Flash-Next/analysis/qwen3.8-flash-next-analysis.html) | [PDF 分析](Qwen/Qwen3.8-Flash-Next/analysis/qwen3.8-flash-next-analysis.pdf) |
 
 ## 说明
 
