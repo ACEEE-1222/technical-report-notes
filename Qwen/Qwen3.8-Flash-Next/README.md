@@ -19,7 +19,7 @@
 - 125B / 6B active 语言主干、51B N-gram Embedding、4B MTP 与公开多模态模型的口径差异；
 - 3× Gated DeltaNet + 1× Qwen Sparse Attention 的 48 层混合 token-mixing 架构；
 - QSA 的 micro-block indexer、两阶段 continued pretraining 与百万 token kernel 效率；
-- 四分支 Gated Residual 的逐通道读门、标量写门、跨层路径和 FP8 residual state；
+- 普通残差、mHC、Attention Residual 与四分支 Gated Residual 的读写机制、状态成本、伪代码对照，以及 GR 的跨层路径和 FP8 residual state；
 - N-gram Embedding 的 Layer 2 放置、host-memory prefetch 与条件记忆路线；
 - Muon 参数分类、fused matrix 语义切分、Canzona 分布式执行和 CUDA Graph；
 - batch size、learning rate、稳定性压力测试、训练与部署披露边界；

@@ -11,8 +11,8 @@
       --muted:#657089; --line:#dce4f6; --pale:#f5f8ff; --soft:#eaf0ff;
       --green:#0e8a67; --amber:#a86708; --red:#c43d55; --purple:#7650c8;
       --serif:"Songti SC","STSong","Noto Serif CJK SC",serif;
-      --sans:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
-      --mono:"SFMono-Regular",Consolas,monospace;
+      --sans:"Hiragino Sans GB","Heiti SC",Arial,sans-serif;
+      --mono:"SFMono-Regular",Consolas,"Hiragino Sans GB","Heiti SC",monospace;
     }
     *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;color:var(--ink);font:15px/1.78 var(--sans);background:radial-gradient(circle at 90% 0,#dfe8ff 0,transparent 34rem),#f7f9fe}
     a{color:var(--qwen2);text-decoration-thickness:1px;text-underline-offset:3px} img{max-width:100%}
@@ -38,12 +38,13 @@
     .pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:18px 0}.step{position:relative;padding:15px 12px;border:1px solid #cbd7f5;background:#f7f9ff;border-radius:8px;text-align:center;font:750 12px/1.45 var(--sans)}.step:not(:last-child):after{content:"→";position:absolute;right:-11px;top:50%;transform:translateY(-50%);z-index:1;color:var(--qwen);font-weight:900}.step em{display:block;color:var(--qwen);font:800 10px/1.4 var(--mono);font-style:normal}
     .evidence-legend{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.evidence{padding:14px;border-radius:8px;border:1px solid var(--line);font-size:11px;line-height:1.55}.evidence b{display:block;margin-bottom:4px}.explicit{border-top:4px solid var(--green)}.redesign{border-top:4px solid var(--qwen)}.related{border-top:4px dashed var(--amber)}.inference{border-top:4px dotted var(--purple)}
     .lineage{position:relative;margin:22px 0}.lineage-row{display:grid;grid-template-columns:170px 40px minmax(0,1fr);align-items:center;margin:9px 0}.lineage-node{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12px}.lineage-arrow{text-align:center;color:var(--qwen);font-weight:900}.lineage-row.related .lineage-arrow{color:var(--amber)}.lineage-row.related .lineage-node:last-child{border-style:dashed}.lineage-note{font-size:11px;color:var(--muted);margin-top:3px}
+    .residual-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px;margin:20px 0}.residual-card{padding:17px 18px 16px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(145deg,#fff,#f8faff)}.residual-card.gr{border-color:#9eb3ff;box-shadow:inset 4px 0 0 var(--qwen)}.residual-card h4{margin:3px 0 10px;color:var(--qwen3)}.residual-card p{margin:9px 0;color:#59657d;font-size:12px;line-height:1.65}.flowline{display:flex;align-items:stretch;gap:5px;margin:10px 0;font:750 10px/1.35 var(--mono);color:#31405f}.flowbox{display:flex;align-items:center;justify-content:center;min-height:42px;padding:7px 8px;border:1px solid #cbd7f5;border-radius:6px;background:#fff;text-align:center;flex:1}.flowbox.memory{background:var(--soft);color:var(--qwen3)}.flowarrow{display:flex;align-items:center;color:var(--qwen);font-size:15px}.thought{display:grid;grid-template-columns:170px repeat(4,1fr);margin:18px 0;border:1px solid var(--line);border-radius:9px;overflow:hidden;font-size:11px;line-height:1.55}.thought>div{padding:12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff}.thought>div:nth-child(5n){border-right:0}.thought>div:nth-last-child(-n+5){border-bottom:0}.thought .head{background:var(--soft);color:var(--qwen3);font-weight:800}.thought .case{background:#f8faff;font-weight:750;color:#34415c}.verdict-line{margin:20px 0;padding:16px 19px;border:1px solid #a9baff;border-radius:9px;background:linear-gradient(90deg,#eef3ff,#fafbff);font-size:13px}.verdict-line b{color:var(--qwen2)}
     .sources{counter-reset:source}.source{counter-increment:source;display:grid;grid-template-columns:34px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.source:before{content:counter(source,decimal-leading-zero);color:var(--qwen);font:800 11px/1.7 var(--mono)}.source a{font-weight:700}.source span{display:block;color:var(--muted);font-size:11px}
     .tag{display:inline-block;margin:2px 3px 2px 0;padding:3px 7px;border:1px solid #cdd9f7;border-radius:999px;background:var(--pale);color:var(--qwen3);font:700 10px/1.3 var(--mono)}ul{padding-left:20px}li{margin:6px 0}
     footer{padding:30px 0;color:#7b869c;font-size:11px}.toplink{float:right}
     @media(max-width:1000px){.page{grid-template-columns:1fr}.sidebar{display:none}.hero-inner,.content-wrap{padding-left:34px;padding-right:34px}.grid-4{grid-template-columns:repeat(2,1fr)}.metric-strip{grid-template-columns:repeat(2,1fr)}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}}
-    @media(max-width:660px){.hero-inner{padding:46px 22px}.content-wrap{padding:0 20px 55px}.hero h1{font-size:40px}.dek{font-size:17px}.grid-2,.grid-3,.grid-4,.evidence-legend,.metric-strip{grid-template-columns:1fr}.metric{border-right:0;border-bottom:1px solid var(--line)}.pipeline{grid-template-columns:1fr}.step:not(:last-child):after{content:"↓";right:50%;top:auto;bottom:-15px}.lineage-row{grid-template-columns:1fr}.lineage-arrow{transform:rotate(90deg)}h2{font-size:27px}}
-    @media print{@page{size:A4;margin:16mm 14mm 18mm}.progress,.sidebar,.metric-strip{display:none!important}.page{display:block;box-shadow:none;max-width:none}.hero{break-after:page;min-height:248mm}.hero-inner{padding:55mm 16mm 20mm}.content-wrap{max-width:none;padding:0}section{padding:8mm 0}.grid-2,.grid-3,.grid-4{break-inside:avoid}.card,.callout,.figure,.table-wrap,.equation,.quote{break-inside:avoid}h2,h3{break-after:avoid}.toc{display:none}a{color:inherit;text-decoration:none}.hero-actions{display:none}body{background:#fff;font-size:10.5px;line-height:1.62}.lead{font-size:13px}h2{font-size:22px}h3{font-size:15px}.card p{font-size:9px}.figure figcaption,.caption{font-size:8px}table{font-size:8px}.sources{font-size:9px}}
+    @media(max-width:660px){.hero-inner{padding:46px 22px}.content-wrap{padding:0 20px 55px}.hero h1{font-size:40px}.dek{font-size:17px}.grid-2,.grid-3,.grid-4,.evidence-legend,.metric-strip,.residual-grid{grid-template-columns:1fr}.metric{border-right:0;border-bottom:1px solid var(--line)}.pipeline{grid-template-columns:1fr}.step:not(:last-child):after{content:"↓";right:50%;top:auto;bottom:-15px}.lineage-row{grid-template-columns:1fr}.lineage-arrow{transform:rotate(90deg)}.thought{display:block}.thought>div{border-right:0}.thought .head:not(:first-child){margin-top:8px}h2{font-size:27px}}
+    @media print{@page{size:A4;margin:16mm 14mm 18mm}.progress,.sidebar,.metric-strip{display:none!important}.page{display:block;box-shadow:none;max-width:none}.hero{break-after:page;min-height:248mm}.hero-inner{padding:55mm 16mm 20mm}.content-wrap{max-width:none;padding:0}section{padding:8mm 0}.grid-2,.grid-3,.grid-4,.residual-grid,.thought{break-inside:avoid}.card,.callout,.figure,.table-wrap,.equation,.quote,.residual-card,.verdict-line{break-inside:avoid}h2,h3{break-after:avoid}.toc{display:none}a{color:inherit;text-decoration:none}.hero-actions{display:none}body{background:#fff;font-size:10.5px;line-height:1.62}.lead{font-size:13px}h2{font-size:22px}h3{font-size:15px}.card p,.residual-card p{font-size:9px}.figure figcaption,.caption{font-size:8px}table{font-size:8px}.sources{font-size:9px}}
   </style>
 </head>
 <body>
@@ -175,18 +176,130 @@ train(backbone_and_indexer, steps=<span class="n">8000</span>, lr=<span class="n
         </section>
 
         <section id="gr">
-          <h2><span class="num">05 · Gated Residual</span>GR：把残差连接从“一条总线”变成“可寻址的四路存储”</h2>
-          <p class="lead">普通 pre-norm residual 让所有层读写同一个向量。早期特征必须与后续所有输出叠加在同一条流里。GR 把残差状态扩成四个平行分支，并让每个子层按 token、按通道决定读多少，再用每分支一个标量决定写多少。</p>
-          <h3>从 AltUp / HC / mHC 到 GR</h3>
-          <div class="table-wrap"><table><thead><tr><th>设计</th><th>读</th><th>写</th><th>分支间混合</th><th>Qwen 消融结论</th></tr></thead><tbody><tr><td>简化 AltUp</td><td>每分支静态标量</td><td>round-robin 单分支</td><td>无</td><td>仅扩宽已能把 loss 降约 0.01</td></tr><tr><td>HC / mHC</td><td>动态分支标量</td><td>动态分支标量</td><td>H<sub>res</sub>；mHC 约束为双随机矩阵</td><td>动态读写显著提升 benchmark</td></tr><tr><td class="hi">GR</td><td class="hi">每分支、每通道 sigmoid gate</td><td>每分支标量，范围约 0–2</td><td>移除 H<sub>res</sub></td><td>表达力集中在读；少一次完整 residual-state 读取</td></tr></tbody></table></div>
-          <div class="equation">R̂<sub>i</sub> = RMSNorm(R<sub>i</sub>; γ<sub>i</sub>)<br>G = unvec(σ(W<sub>u</sub> SiLU((1/n<sub>r</sub>)W<sub>d</sub> vec(R̂))))<br>x = (1/n<sub>r</sub>) Σ<sub>i</sub> G<sub>i</sub> ⊙ R̂<sub>i</sub><br>s = 2σ((1/n<sub>r</sub>)W<sub>w</sub>vec(R̂)), &nbsp; R′<sub>i</sub> = R<sub>i</sub> + s<sub>i</sub>y</div>
-          <div class="grid-3"><div class="card"><span class="kicker">Group RMSNorm</span><h4>四条分支分别归一化</h4><p>每条分支拥有独立 gain γ，避免先混合再归一化掩盖各分支尺度。</p></div><div class="card"><span class="kicker">Low-rank read</span><h4>先看全部分支，再给逐通道 gate</h4><p>从 4d 维状态压到 d/8，再还原为 4d gate；当前 d=2560，rank=320。</p></div><div class="card"><span class="kicker">Scalar write</span><h4>写不需要逐通道</h4><p>消融发现 read granularity 重要，write 细化收益很小，因此保留每分支一个标量。</p></div></div>
-          <div class="table-wrap"><table><thead><tr><th>25B-A3B，560B tokens，4 branches</th><th>Loss</th><th>9 项平均</th></tr></thead><tbody><tr><td>Pre-norm</td><td>1.617</td><td>50.91</td></tr><tr><td>mHC static</td><td>1.596</td><td>52.49</td></tr><tr><td>mHC dynamic</td><td>1.594</td><td>54.47</td></tr><tr><td class="hi">GR</td><td class="hi">1.590</td><td class="hi">54.66</td></tr></tbody></table></div>
+          <h2><span class="num">05 · Residual design</span>普通残差、mHC、Attention Residual 与 GR：四种“跨层信息系统”</h2>
+          <p class="lead">残差连接不只是让梯度绕过子层，它还规定了网络如何沿深度保存、读取和更新信息。四种方案可以用三个问题统一理解：<b>历史被保存成什么状态？当前子层从哪里读？子层输出又写到哪里？</b></p>
+
+          <div class="residual-grid">
+            <div class="residual-card">
+              <span class="kicker">Pre-norm residual</span><h4>单流累加：所有历史先压成一个和</h4>
+              <div class="flowline"><span class="flowbox memory">单个 d 维<br>公共状态</span><span class="flowarrow">→</span><span class="flowbox">Norm → F</span><span class="flowarrow">→</span><span class="flowbox">直接相加</span></div>
+              <p>读固定为当前总和，写固定为系数 1 的加法。状态最省、identity path 最清晰，但某个早期输出一旦被加进总和，后层便无法把它与其他历史输出分开取回。</p>
+            </div>
+            <div class="residual-card">
+              <span class="kicker">mHC · fixed-width memory</span><h4>多流路由：标量读写 + 分支间动态混合</h4>
+              <div class="flowline"><span class="flowbox memory">n<sub>r</sub>×d<br>分支状态</span><span class="flowarrow">→</span><span class="flowbox">H<sub>mix</sub><br>标量读</span><span class="flowarrow">→</span><span class="flowbox">F</span><span class="flowarrow">→</span><span class="flowbox">混合旧状态<br>+ 分支写入</span></div>
+              <p>把历史压进固定数量的并行状态；每个 token 可改变各分支的读写权重，并用 H<sub>res</sub> 在分支间搬运已有内容。mHC 将 H<sub>res</sub> 约束为双随机矩阵，以限制动态混合的放大与漂移。</p>
+            </div>
+            <div class="residual-card">
+              <span class="kicker">Attention Residual · depth memory</span><h4>历史库检索：直接 attention 到早期子层输出</h4>
+              <div class="flowline"><span class="flowbox memory">L×d<br>历史输出库</span><span class="flowarrow">→</span><span class="flowbox">depth-wise<br>softmax</span><span class="flowarrow">→</span><span class="flowbox">F</span><span class="flowarrow">→</span><span class="flowbox">追加新输出</span></div>
+              <p>每个子层不必接受“已经混成一团”的总和，而是对全部早期输出重新加权。检索最直接，但 Full AttnRes 保存和通信的状态随深度增长；Block 版用分块求和降低增长速度。</p>
+            </div>
+            <div class="residual-card gr">
+              <span class="kicker">Gated Residual · Qwen choice</span><h4>四流分工：逐通道读 + 标量写，不再混流</h4>
+              <div class="flowline"><span class="flowbox memory">4×d<br>分支状态</span><span class="flowarrow">→</span><span class="flowbox">G<sub>i,c</sub><br>逐通道读</span><span class="flowarrow">→</span><span class="flowbox">F</span><span class="flowarrow">→</span><span class="flowbox">标量写回<br>各分支</span></div>
+              <p>仍把历史压进固定四路状态，但读门细到“分支 × 通道”，让一个子层可从不同分支抽取不同特征；写回只保留每分支一个标量，并完全移除 H<sub>res</sub>。</p>
+            </div>
+          </div>
+
+          <h3>先看伪代码：差别发生在 read、write，还是 state</h3>
+          <div class="code"><span class="c"># 1) 普通 PreNorm：state 只有一条流；无法单独访问某个早期输出</span>
+def prenorm_step(R, F):                       <span class="c"># R: [d]</span>
+    x = rms_norm(R)                           <span class="c"># fixed read</span>
+    y = F(x)
+    R = R + y                                 <span class="c"># fixed write, coefficient = 1</span>
+    return R
+
+<span class="c"># 2) mHC：state 是固定 n_r 条流；读写为分支标量，H_res 负责旧状态跨分支混合</span>
+def mhc_step(R, F):                           <span class="c"># R: [n_r, d]</span>
+    Z = group_rms_norm(R)
+    h_mix, h_write, H_res = router(Z)          <span class="c"># [n_r], [n_r], [n_r,n_r]</span>
+    H_res = sinkhorn(H_res)                    <span class="c"># nonnegative; each row/column sums to 1</span>
+    x = sum(h_mix[i] * R[i] for i in branches)
+    y = F(rms_norm(x))
+    R = H_res @ R + h_write[:, None] * y       <span class="c"># mix old state, then broadcast-write y</span>
+    return R
+
+<span class="c"># 3) Full AttnRes：state 是全部历史子层输出；沿 depth 做 softmax 检索</span>
+def attnres_step(history, layer_id, F):        <span class="c"># history: [0..layer_id-1, d]</span>
+    q = learned_query[layer_id]                <span class="c"># 每层一个参数向量，不是 token Q 投影</span>
+    score = einsum(q, rms_norm(history))        <span class="c"># 每个 token、每个历史输出一个标量</span>
+    alpha = softmax(score, dim="depth")
+    x = sum(alpha[i] * history[i] for i in depth)
+    y = F(x)
+    history.append(y)                          <span class="c"># 状态随深度增长</span>
+    return history
+
+<span class="c"># 4) GR：state 固定为 4 条流；逐通道读，标量写，无 H_res</span>
+def gr_step(R, F):                            <span class="c"># R: [4, d]</span>
+    Z = per_branch_rms_norm(R)
+    G = sigmoid(up(silu(down(flatten(Z)))))    <span class="c"># [4,d], bottleneck rank = d/8</span>
+    x = mean(G * Z, dim="branch")              <span class="c"># channel-wise read；不是 softmax</span>
+    y = F(x)
+    s = 2 * sigmoid(write_proj(flatten(Z)))     <span class="c"># [4], each value in (0,2)</span>
+    R = R + s[:, None] * y                     <span class="c"># 各分支保留自身历史，只接收新输出</span>
+    return R</div>
+          <p class="caption">伪代码省略 batch/token 维、静态项和实现细节，目的是对齐四种机制的状态组织与读写接口。mHC 的具体参数化比这里更完整；Full AttnRes 的 key/value 都是早期子层输出，query 是每层一个可学习向量。</p>
+
+          <h3>1. 普通残差：一条“不断做加法”的公共总线</h3>
+          <div class="equation">x<sup>(ℓ)</sup> = R<sup>(ℓ)</sup><br>y<sup>(ℓ)</sup> = F<sup>(ℓ)</sup>(Norm(x<sup>(ℓ)</sup>))<br>R<sup>(ℓ+1)</sup> = R<sup>(ℓ)</sup> + y<sup>(ℓ)</sup> = R<sup>(0)</sup> + Σ<sub>u≤ℓ</sub> y<sup>(u)</sup></div>
+          <p>普通 residual 的优点非常具体：每个 token 只维护一个 d 维状态；读写几乎不需要额外路由计算；加法中的 identity term 为信息和梯度提供直接路径。它的问题也来自同一个公式：所有历史输出都以固定权重 1 累加。第 20 个子层看到的是一个总和，而不是一个带标签的历史列表；如果它只需要第 2 层留下的某项特征，只能尝试从混合后的向量中重新解码。</p>
+          <p>因此所谓“早期信号被稀释”不是早期输出凭空消失，而是它在总状态中的相对占比随新增输出下降，并且后层没有独立选择系数。后续子层若想增强自己的影响，还可能倾向产生更大的输出，进一步推动 residual magnitude 随深度增长。</p>
+
+          <h3>2. <a href="https://arxiv.org/abs/2512.24880">mHC</a>：固定多分支状态，但增加一次分支间重路由</h3>
+          <div class="equation">x<sup>(ℓ)</sup> = H<sub>mix</sub><sup>T</sup>R<sup>(ℓ)</sup><br>y<sup>(ℓ)</sup> = F<sup>(ℓ)</sup>(Norm(x<sup>(ℓ)</sup>))<br>R<sup>(ℓ+1)</sup> = H<sub>res</sub>R<sup>(ℓ)</sup> + H<sub>combine</sub>y<sup>(ℓ)T</sup></div>
+          <p>HC/mHC 把一条 d 维流扩为 n<sub>r</sub> 条。H<sub>mix</sub> 决定当前子层从每条分支读多少，H<sub>combine</sub> 决定新输出写进各分支多少，H<sub>res</sub> 则在进入下一子层前重新混合旧分支。三者都可由当前 residual state 动态预测，所以不同 token 可以走不同的跨层路线。</p>
+          <p>关键是 H<sub>mix</sub> 和 H<sub>combine</sub> 在标准 HC/mHC 中主要是<b>每分支一个标量</b>：选中一条分支时，整条 d 维向量一起缩放。额外的 n<sub>r</sub>×n<sub>r</sub> 矩阵 H<sub>res</sub> 提供分支间交换能力。mHC 用 sigmoid，并把 H<sub>res</sub> 投影到双随机矩阵集合——元素非负、每行和每列均为 1——使旧状态的更新更接近受约束的“重新分配”，而不是任意放大；配合 identity 初始化，可保留稳定的直通路径。</p>
+          <div class="callout"><strong>mHC 不是“保留所有历史层”</strong>它与 GR 一样，只维护固定 n<sub>r</sub> 条状态。某条分支仍是许多早期输出的累加与混合，只是多分支和动态路由降低了单一总和的瓶颈。它增加的是固定宽度的跨层容量，不是可随机访问的完整深度缓存。</div>
+
+          <h3>3. <a href="https://arxiv.org/abs/2603.15031">Attention Residual</a>：把“层深”当作 attention 的序列轴</h3>
+          <div class="equation">v<sub>0</sub> = embedding，v<sub>i</sub> = f<sub>i</sub>(h<sub>i</sub>)<br>α<sub>i→ℓ</sub> = softmax<sub>i&lt;ℓ</sub>(w<sub>ℓ</sub><sup>T</sup> RMSNorm(v<sub>i</sub>))<br>h<sub>ℓ</sub> = Σ<sub>i=0…ℓ−1</sub> α<sub>i→ℓ</sub>v<sub>i</sub></div>
+          <p>Full AttnRes 不再递归维护一个 residual sum，而是保存 embedding 与每个早期子层的输出。第 ℓ 个子层用一个可学习的伪 query w<sub>ℓ</sub> 对这些输出计算 softmax，再形成自己的输入。query 对该层固定，但 key 来自每个 token 的历史表示，因此深度权重仍然随输入而变。</p>
+          <p>它与序列 attention 的类比很直观：token attention 在时间轴上检索早期 token，AttnRes 在深度轴上检索早期 layer output。Full 版可直接回到某个早期输出，代价是单个 token 需保留 O(Ld) 历史，全部层的深度 attention 算术量为 O(L²d)；在 activation recomputation 和 pipeline parallelism 下，这些历史还需要持续保存与跨 stage 传输。</p>
+          <p>Block AttnRes 将每 S 个子层输出先求和成一个 block representation，再在 block 间 attention，使状态与通信从 O(Ld) 降到 O((L/S)d)。代价是 block 内输出再次失去身份：softmax 只能选择“这一组层的总和”，无法区分组内哪一层真正有用。</p>
+
+          <h3>4. GR：用四个压缩记忆槽，换取更细的读取粒度</h3>
+          <div class="equation">R̂<sub>i</sub> = RMSNorm(R<sub>i</sub>; γ<sub>i</sub>)<br>G = unvec(σ(W<sub>u</sub> SiLU((1/n<sub>r</sub>)W<sub>d</sub> vec(R̂)))) ∈ R<sup>n<sub>r</sub>×d</sup><br>x = (1/n<sub>r</sub>) Σ<sub>i</sub> G<sub>i</sub> ⊙ R̂<sub>i</sub><br>s = 2σ((1/n<sub>r</sub>)W<sub>w</sub>vec(R̂)), &nbsp; R′<sub>i</sub> = R<sub>i</sub> + s<sub>i</sub>y</div>
+          <p>GR 延续 widened residual 的固定多流结构，但把表达力从 H<sub>res</sub> 转移到 read。它先分别归一化四条分支，再由全部 4d 状态通过 d/8 的低秩瓶颈，生成 4×d 个 sigmoid gate。于是同一个子层可以从分支 1 取“语法相关通道”、从分支 3 取“长程实体相关通道”，而不是像 mHC 那样对整条分支使用同一个缩放系数。</p>
+          <p>这里的 G 不是沿分支 softmax：四条分支的权重不要求和为 1，每个通道可以同时开放多条分支，也可以全部压低。写端则只生成四个 (0,2) 标量，把同一个子层输出以不同强度加回各分支。报告消融发现逐通道 read 有收益，逐通道 write 几乎没有，因此最终设计把容量花在读取而非写入。</p>
+          <div class="grid-3"><div class="card"><span class="kicker">Group RMSNorm</span><h4>四条分支分别归一化</h4><p>每条分支拥有独立 gain γ；GR read 本身已完成归一化，因此取代普通 block pre-norm，而非在它前面再叠一层。</p></div><div class="card"><span class="kicker">Low-rank router</span><h4>低秩预测，逐通道执行</h4><p>路由器从 4d 压到 d/8 再升到 4d。当前 d=2560，瓶颈 rank=320；输出 gate 仍覆盖每个分支和通道。</p></div><div class="card"><span class="kicker">No Hres</span><h4>分支不互相改写</h4><p>每条分支只保留自己的历史并接收新 y。移除 H<sub>res</sub> 少一次完整 residual-state 读取，也让路径贡献可精确分解。</p></div></div>
+
+          <h3>一个具体例子：当前层需要“长期实体 + 最近句法”</h3>
+          <div class="thought">
+            <div class="head">需求 / 设计</div><div class="head">普通残差</div><div class="head">mHC</div><div class="head">Full AttnRes</div><div class="head">GR</div>
+            <div class="case">状态中有什么</div><div>所有旧输出的一个总和</div><div>固定 n<sub>r</sub> 条累加并动态混合的状态</div><div>每个早期子层的独立输出</div><div>固定 4 条彼此独立的累加状态</div>
+            <div class="case">如何取长期实体</div><div>只能从总和中解码</div><div>提高保存该信息的整条分支权重</div><div>直接提高产生该表示的早期层权重</div><div>只打开长期分支中的实体相关通道</div>
+            <div class="case">如何同时取最近句法</div><div>同一总和已包含，但不可独立调权</div><div>再提高另一分支；整条向量一起进入</div><div>同时 attention 到最近层输出</div><div>从局部分支打开另一组通道</div>
+            <div class="case">付出的代价</div><div>最低；但选择能力最弱</div><div>n<sub>r</sub> 倍状态流量 + H<sub>res</sub> 混合</div><div>历史保存、深度 attention 与 pipeline 通信随 L 增长</div><div>4 倍状态流量 + 低秩 gate；无 H<sub>res</sub></div>
+          </div>
+
+          <h3>放在一张表里：能力与成本分别来自哪里</h3>
+          <div class="table-wrap"><table><thead><tr><th>设计</th><th>持久状态（每 token）</th><th>选择粒度</th><th>旧状态如何演化</th><th>主要优势</th><th>主要成本 / 局限</th></tr></thead><tbody>
+            <tr><td>Pre-norm residual</td><td>O(d)</td><td>无动态选择；所有历史权重为 1</td><td>单流累加</td><td>最省显存与带宽；identity path 简洁</td><td>早期输出不可单独取回；相对贡献随深度稀释</td></tr>
+            <tr><td>mHC，n<sub>r</sub> branches</td><td>O(n<sub>r</sub>d)</td><td>读写通常为每分支标量</td><td>H<sub>res</sub> 动态跨分支混合</td><td>固定成本下扩大跨层容量；路由随输入变化</td><td>标量读不能按通道组合；H<sub>res</sub> 增加整状态读取与约束</td></tr>
+            <tr><td>Full AttnRes</td><td>O(Ld)</td><td>每个历史子层一个 softmax 标量</td><td>历史输出独立保存并追加</td><td>可直接选择具体早期输出；选择空间最完整</td><td>全网 O(L²d) 深度 attention；大规模重计算/流水并行下保存与通信昂贵</td></tr>
+            <tr><td>Block AttnRes，block size S</td><td>O((L/S)d)</td><td>每个 block 一个 softmax 标量</td><td>block 内先固定求和</td><td>保留部分深度检索，降低状态与通信</td><td>组内层身份被压缩；S 越大信息损失越明显</td></tr>
+            <tr><td class="hi">GR，n<sub>r</sub>=4</td><td class="hi">O(4d)，不随 L 增长</td><td class="hi">读为每分支×每通道；写为每分支标量</td><td>无分支混合，各自累加</td><td>固定状态下组合不同分支的不同通道；路径清晰</td><td>仍是压缩记忆而非完整历史；四路 residual 带宽是核心开销</td></tr>
+          </tbody></table></div>
+          <p class="caption">复杂度只描述残差机制自身的持久状态与深度聚合，不代表整个 Transformer 的总 FLOPs。Full AttnRes 在普通、不做 activation recomputation 的训练中可复用本就保留的反向激活；在大规模重计算与 pipeline parallelism 下，额外保存和通信才成为主要问题。</p>
+
+          <h3>Qwen 的直接消融：GR 相对 mHC，收益来自哪里</h3>
+          <div class="table-wrap"><table><thead><tr><th>25B-A3B，560B tokens，4 branches</th><th>Loss</th><th>9 项平均</th><th>相对上一行的关键信号</th></tr></thead><tbody><tr><td>Pre-norm</td><td>1.617</td><td>50.91</td><td>单流基线</td></tr><tr><td>mHC static</td><td>1.596</td><td>52.49</td><td>只扩宽与静态读写：loss −0.021，平均 +1.58</td></tr><tr><td>mHC dynamic</td><td>1.594</td><td>54.47</td><td>动态路由：loss 只再降 0.002，平均却再升 1.98</td></tr><tr><td class="hi">GR</td><td class="hi">1.590</td><td class="hi">54.66</td><td>逐通道读 + 移除 H<sub>res</sub>：质量相当略优，状态读取更少</td></tr></tbody></table></div>
+          <p>这组实验说明两件事。第一，提升并不全来自复杂门控：把 residual 从一条扩成四条、即使只使用静态算子，也贡献了主要 loss 降幅。第二，动态路由的价值更容易体现在 benchmark 而非训练 loss；若只看 0.002 的 loss 差，会低估 static→dynamic 带来的 1.98 分平均提升。</p>
+
+          <h3>Qwen 的直接消融：AttnRes 的 loss 更低，为何最终仍选 GR</h3>
+          <div class="table-wrap"><table><thead><tr><th>28 layers / 56 sublayers</th><th>原设计 Loss</th><th>+ GatedNorm</th><th>怎么读</th></tr></thead><tbody><tr><td>Pre-norm</td><td>1.789</td><td>1.787</td><td>GN 改善 0.002</td></tr><tr><td>Block AttnRes，S=4</td><td>1.773</td><td>1.768</td><td>四个子层先求和；GN 改善 0.005</td></tr><tr><td>Block AttnRes，S=2</td><td>1.770</td><td>1.766</td><td>压缩更轻，优于 S=4</td></tr><tr><td>Full AttnRes</td><td>1.762</td><td class="hi">1.758</td><td>本表最低 loss，但状态/通信随深度增长</td></tr><tr><td class="hi">GR，n<sub>r</sub>=4</td><td>—</td><td class="hi">1.762</td><td>与未加 GN 的 Full AttnRes 持平；固定四路状态</td></tr></tbody></table></div>
+          <p>这张表不能解读成“GR 在纯 loss 上击败 AttnRes”：<b>Full AttnRes + GatedNorm 的 1.758 是最低值，GR 为 1.762。</b>结合最终采用 GR 的架构与两类方案的系统成本看，实际取舍相当于用 0.004 loss 换固定 O(4d) 状态和更简单的流水并行路径。48 层的另一组实验中，Block AttnRes S=4 为 1.711，GR 为 1.707；报告没有在该设置给出 Full AttnRes 数字。</p>
+          <div class="callout amber"><strong>两张表不能横向硬排</strong>mHC/GR 的 Table 5 是 25B-A3B、560B tokens，并报告 9 项 benchmark；AttnRes 的 Table 6 是 28 层 residual-design loss 实验。它们分别回答“GR 相对 mHC 的质量与路由取舍”和“固定状态 GR 相对深度 attention 的 loss/效率取舍”，不是同一排行榜。</div>
+
+          <h3>四条分支最终学到了什么</h3>
           <figure class="figure"><img src="../../../assets/qwen3.8-flash-next/fig-7-gr-paths.png" alt="Gated Residual paths"><figcaption><b>论文 Fig.7。</b>在 20 层模型中，GR 学到一条典型 skip≈10.9 层的长程分支，另外三条分支的典型 skip≈3.4–3.9；长程路径主要把早期 GDN 输出送到周期性的全局 attention 层。</figcaption></figure>
           <p>路径分解给出比“残差更宽所以更强”更具体的机制：Layer 0 GDN → Layer 15 attention 的输入份额从 0.020 升到 0.138；Layer 10 GDN → Layer 11 attention 的增量也达到 0.117。总体上，adjacent path 与 skip&gt;12 的份额上升，中距离 2–12 层路径下降。GR 没有简单增加平均跨层距离，而是把容量重分配给少数短程和长程关键通路。</p>
+          <div class="verdict-line"><b>一句话总结：</b>普通 residual 是“一个不断覆盖语义的总和”；mHC 是“固定多槽记忆 + 标量路由 + 槽间重排”；AttnRes 是“保留完整层历史再做深度检索”；GR 则是“固定四槽记忆 + 逐通道读取”，用比 mHC 更细的 read 换掉 H<sub>res</sub>，并用比 AttnRes 更强的历史压缩换取固定系统成本。</div>
+
           <h3>推理侧为什么没有采用 Top-2 分支读</h3>
           <p>训练后可观察到写入常由两条分支主导，于是团队试过只读 gate 最大的两条分支。预训练 loss 与 benchmark 几乎不变，但后训练质量明显下降，最终放弃。实际优化选择是：将 residual state 保存为 FP8，使相对 BF16 的搬运字节减半；再把 read/write 各自融合成一个 kernel，并把 group RMSNorm 折进 read。</p>
-          <div class="callout amber"><strong>AttnRes 的位置</strong>报告将 Attention Residual 作为同条件比较对象：full AttnRes 在 28 层上 loss 1.762，与 GR+GatedNorm 持平；block summary 会损失 0.008–0.011。两者都改善跨层读取，但报告没有把 AttnRes 写成 GR 的来源，因此在谱系图中列为“相关但非直接祖先”。</div>
+          <div class="callout green"><strong>最终工程判断</strong>GR 的优势不是“残差计算更少”——四路状态本身会增加带宽——而是它的成本不随网络深度增长，并且移除了 mHC 的 H<sub>res</sub> 整状态重读。FP8 state 与 fused read/write 针对的正是这个带宽瓶颈。</div>
         </section>
 
         <section id="ngram">
